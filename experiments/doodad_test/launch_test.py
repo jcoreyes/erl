@@ -1,9 +1,9 @@
 import argparse
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 
 def run_task(variant):
-    from railrl.core import logger
+    from rlkit.core import logger
     print(variant)
     logger.log("Hello from script")
     logger.log("variant: " + str(variant))

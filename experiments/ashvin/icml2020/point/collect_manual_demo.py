@@ -1,10 +1,10 @@
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 import numpy as np
-from railrl.demos.collect_demo import collect_demos, collect_demos_fixed
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.demos.collect_demo import collect_demos, collect_demos_fixed
+from rlkit.misc.asset_loader import load_local_or_remote_file
 
-from railrl.envs.simple.point import Point
+from rlkit.envs.simple.point import Point
 
 class PointmassExpert:
     def __init__(self, n):

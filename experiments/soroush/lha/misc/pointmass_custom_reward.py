@@ -2,12 +2,12 @@ import argparse
 import math
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.state_based_steven_masking import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual.state_based_steven_masking import (
     masking_sac_experiment_with_variant
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.contextual.state_based_steven_masking import (
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.contextual.state_based_steven_masking import (
      PickAndPlace1DEnvObjectOnlyRewardFn
 )
 

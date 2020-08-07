@@ -2,22 +2,22 @@ import argparse
 
 from torch.nn import functional as F
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.baxter_env import MultiTaskBaxterEnv
-from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.state_distance.exploration import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.baxter_env import MultiTaskBaxterEnv
+from rlkit.envs.wrappers import convert_gym_space
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import ConstantSchedule
+from rlkit.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
-from railrl.state_distance.old.networks import (
+from rlkit.state_distance.old.networks import (
     FFUniversalPolicy,
     FlatUniversalQfunction,
 )
-from railrl.state_distance.state_distance_q_learning import (
+from rlkit.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning,
 )
-from railrl.torch.networks.experimental import HuberLoss
+from rlkit.torch.networks.experimental import HuberLoss
 
 
 def experiment(variant):

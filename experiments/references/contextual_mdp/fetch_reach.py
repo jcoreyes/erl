@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.gym_goal_env import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual.gym_goal_env import (
     sac_on_gym_goal_env_experiment
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(

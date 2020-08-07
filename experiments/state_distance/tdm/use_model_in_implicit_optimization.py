@@ -2,9 +2,9 @@ import argparse
 import joblib
 import torch
 
-from railrl.core import logger
-from railrl.samplers.util import rollout
-from railrl.torch.core import PyTorchModule
+from rlkit.core import logger
+from rlkit.samplers.util import rollout
+from rlkit.torch.core import PyTorchModule
 
 PATH = '/home/vitchyr/git/railrl/data/local/01-27-reacher-full-mpcnn-H1/01-27-reacher-full-mpcnn-H1_2018_01_27_17_59_04_0000--s-96642/params.pkl'
 

@@ -1,14 +1,14 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.grill.common import train_vae
-from railrl.torch.vae.conditional_conv_vae import DeltaCVAE
-from railrl.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
-from railrl.data_management.online_conditional_vae_replay_buffer import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_with_more_hidden_layers
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.grill.common import train_vae
+from rlkit.torch.vae.conditional_conv_vae import DeltaCVAE
+from rlkit.torch.vae.conditional_vae_trainer import DeltaCVAETrainer
+from rlkit.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer
-from railrl.data_management.external.bair_dataset import bair_dataset
+from rlkit.data_management.external.bair_dataset import bair_dataset
 
 if __name__ == "__main__":
     variant = dict(

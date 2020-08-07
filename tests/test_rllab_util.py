@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from railrl.samplers.util import split_paths
-from railrl.testing.testing_utils import are_np_arrays_equal
+from rlkit.samplers.util import split_paths
+from rlkit.testing.testing_utils import are_np_arrays_equal
 
 
 def create_path(offset):

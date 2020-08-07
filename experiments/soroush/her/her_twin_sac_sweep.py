@@ -3,9 +3,9 @@ import math
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv, SawyerReachXYZEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_twin_sac_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_twin_sac_experiment
+import rlkit.misc.hyperparameter as hyp
 
 variant = dict(
     algo_kwargs=dict(

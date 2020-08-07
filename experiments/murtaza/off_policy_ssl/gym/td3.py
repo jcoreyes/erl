@@ -12,20 +12,20 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.td3.td3 import TD3
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.samplers.data_collector.step_collector import MdpStepCollector
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.sac import SACTrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.td3.td3 import TD3
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 
     # n_seeds = 5
     # mode = 'sss'
-    # exp_name = 'railrl-half-cheetah-online'
+    # exp_name = 'rlkit-half-cheetah-online'
 
     search_space = {
         'env': [

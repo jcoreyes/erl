@@ -4,11 +4,11 @@ import json
 import joblib
 from pathlib import Path
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.pythonplusplus import find_key_recursive
-from railrl.samplers.rollout_functions import tdm_rollout
-from railrl.core import logger
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.vae_wrappers import VAEWrappedEnv
+from rlkit.pythonplusplus import find_key_recursive
+from rlkit.samplers.rollout_functions import tdm_rollout
+from rlkit.core import logger
 
 
 def get_max_tau(args):

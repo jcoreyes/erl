@@ -1,15 +1,15 @@
 import gym
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.launchers.launcher_util import run_experiment
 from torch import nn as nn
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.base import \
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.torch.ddpg.ddpg import DDPG
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 
 def experiment(variant):

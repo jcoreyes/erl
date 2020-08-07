@@ -3,35 +3,35 @@ import random
 import numpy as np
 import torch.nn as nn
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
-# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
+# from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.multitask.reacher_7dof import (
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from rlkit.envs.multitask.pusher3d_gym import GoalXYGymPusherEnv
+from rlkit.envs.multitask.walker2d_env import Walker2DTargetXPos
+from rlkit.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState, Reacher7DofFullGoal)
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_networks import TdmPolicy, \
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.tdm_networks import TdmPolicy, \
     TdmQf, TdmNormalizer
-from railrl.state_distance.experimental_tdm_networks import StructuredQF, \
+from rlkit.state_distance.experimental_tdm_networks import StructuredQF, \
     InternalGcmQf
-from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import TanhMlpPolicy, FeedForwardPolicy
+from rlkit.state_distance.tdm_ddpg import TdmDdpg
+from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from rlkit.torch.modules import HuberLoss
+from rlkit.torch.networks import TanhMlpPolicy, FeedForwardPolicy
 
 
 def experiment(variant):

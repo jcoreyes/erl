@@ -2,16 +2,16 @@ import random
 
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.hopper_env import GoalXPosHopper
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
-from railrl.torch.networks import FlattenMlp
-import railrl.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.hopper_env import GoalXPosHopper
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
+from rlkit.torch.networks import FlattenMlp
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

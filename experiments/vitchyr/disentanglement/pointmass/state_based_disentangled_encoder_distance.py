@@ -1,10 +1,10 @@
 import torch.nn.functional as F
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.disentanglement.disentangled_encoder_distance_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.disentanglement.disentangled_encoder_distance_launcher import (
     use_disentangled_encoder_distance
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(

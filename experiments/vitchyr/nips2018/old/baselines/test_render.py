@@ -1,14 +1,14 @@
 import sys, tty, termios
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, \
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv, \
     SawyerPushEnv, SawyerXYZEnv
-from railrl.envs.mujoco.sawyer_kitchen import KitchenCabinetEnv
-from railrl.envs.wrappers import ImageMujocoEnv
+from rlkit.envs.mujoco.sawyer_kitchen import KitchenCabinetEnv
+from rlkit.envs.wrappers import ImageMujocoEnv
 
-from railrl.exploration_strategies.base import \
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.policies.simple import ZeroPolicy
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.policies.simple import ZeroPolicy
 import numpy as np
 
 print("making env")
@@ -17,7 +17,7 @@ env = SawyerPushEnv(randomize_goals=False, frame_skip=50)
 env = SawyerXYZEnv(frame_skip=50, pos_action_scale=2./100)
 env = SawyerPushXYEnv(frame_skip=50, pos_action_scale=2./100)
 # env = KitchenCabinetEnv()
-from railrl.images.camera import sawyer_init_camera
+from rlkit.images.camera import sawyer_init_camera
 # env = ImageMujocoEnv(
 #         env,
 #         init_camera=sawyer_init_camera,

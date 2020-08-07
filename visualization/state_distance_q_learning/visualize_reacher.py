@@ -1,6 +1,6 @@
 from math import pi
 import numpy as np
-from railrl.envs.multitask.reacher_env import XyMultitaskReacherEnv
+from rlkit.envs.multitask.reacher_env import XyMultitaskReacherEnv
 
 env = XyMultitaskReacherEnv()
 env.reset()

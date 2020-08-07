@@ -1,11 +1,11 @@
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.samplers.util import rollout
-from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.samplers.util import rollout
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.pytorch_util import set_gpu_mode
 import argparse
 import joblib
 import uuid
-from railrl.core import logger
+from rlkit.core import logger
 
 import cv2
 import os.path as osp
@@ -17,7 +17,7 @@ import skvideo.io
 import numpy as np
 import time
 
-from railrl.envs.wrappers import ImageMujocoEnv
+from rlkit.envs.wrappers import ImageMujocoEnv
 import scipy.misc
 
 H = 168
@@ -182,7 +182,7 @@ def dump_video(
 
     return paths
 
-from railrl.images.camera import sawyer_init_camera, \
+from rlkit.images.camera import sawyer_init_camera, \
     sawyer_init_camera_zoomed_in
 
 def simulate_policy(args):

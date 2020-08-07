@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.launchers.experiments.goal_distribution.launcher import \
+from rlkit.launchers.experiments.goal_distribution.launcher import \
     representation_learning_with_goal_distribution_launcher
 
-from railrl.launchers.launcher_util import run_experiment
-# from railrl.torch.sets.launcher import test_offline_set_vae
-# from railrl.launchers.masking_launcher import default_masked_reward_fn
-from railrl.envs.contextual.mask_conditioned import default_masked_reward_fn
-from railrl.launchers.exp_launcher import rl_context_experiment
+from rlkit.launchers.launcher_util import run_experiment
+# from rlkit.torch.sets.launcher import test_offline_set_vae
+# from rlkit.launchers.masking_launcher import default_masked_reward_fn
+from rlkit.envs.contextual.mask_conditioned import default_masked_reward_fn
+from rlkit.launchers.exp_launcher import rl_context_experiment
 
 if __name__ == '__main__':
     imsize = 48

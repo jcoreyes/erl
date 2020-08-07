@@ -3,10 +3,10 @@ Run PyTorch NAF on many envs.
 """
 import random
 
-import railrl.torch.pytorch_util as ptu
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.naf import NafPolicy, NAF
+import rlkit.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.naf import NafPolicy, NAF
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv

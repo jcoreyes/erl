@@ -8,26 +8,26 @@ Note that one epoch = 5k steps, so 200 epochs = 1 million steps.
 """
 import gym
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import \
+from rlkit.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import setup_logger
-from railrl.samplers.data_collector import GoalConditionedPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.td3.td3 import TD3
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.samplers.data_collector import GoalConditionedPathCollector
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.td3.td3 import TD3
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 
-from railrl.launchers.arglauncher import run_variants
-from railrl.launchers.launcher_util import run_experiment
-# import railrl.util.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+# import rlkit.util.hyperparameter as hyp
 
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2

@@ -1,14 +1,14 @@
 import random
 
-from railrl.envs.memory.continuous_memory_augmented import \
+from rlkit.envs.memory.continuous_memory_augmented import \
     ContinuousMemoryAugmented
-from railrl.envs.mujoco.water_maze import WaterMazeMemory
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.exploration_strategies.product_strategy import ProductStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.memory_states.policies import MemoryPolicy
-from railrl.memory_states.qfunctions import RecurrentMemoryQFunction
-from railrl.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
+from rlkit.envs.mujoco.water_maze import WaterMazeMemory
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.exploration_strategies.product_strategy import ProductStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.memory_states.policies import MemoryPolicy
+from rlkit.memory_states.qfunctions import RecurrentMemoryQFunction
+from rlkit.torch.bptt_ddpg_rq import BpttDdpgRecurrentQ
 
 
 def example(variant):

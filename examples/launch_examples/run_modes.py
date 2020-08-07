@@ -4,13 +4,13 @@ Example of different ways to sweep hyperparameters.
 import random
 import numpy as np
 from hyperopt import hp
-from railrl.misc.hypopt import optimize_and_save
-from railrl.launchers.launcher_util import (
+from rlkit.misc.hypopt import optimize_and_save
+from rlkit.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
 )
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

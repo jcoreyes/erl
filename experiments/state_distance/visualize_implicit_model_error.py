@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
 
-from railrl.policies.simple import RandomPolicy
-import railrl.torch.pytorch_util as ptu
+from rlkit.policies.simple import RandomPolicy
+import rlkit.torch.pytorch_util as ptu
 from torch import optim
 
 

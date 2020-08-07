@@ -6,16 +6,16 @@ from gym.envs.mujoco import (
     Walker2dEnv,
     InvertedPendulumEnv, InvertedDoublePendulumEnv)
 
-from railrl.envs.pygame.point2d import Point2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from rlkit.envs.pygame.point2d import Point2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.ddpg.ddpg import DDPG
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
 
 
 def experiment(variant):

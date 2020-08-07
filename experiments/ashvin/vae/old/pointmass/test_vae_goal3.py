@@ -1,21 +1,21 @@
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.point2d import MultitaskImagePoint2DEnv
+from rlkit.envs.mujoco.pusher2d import Pusher2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.torch.pytorch_util as ptu
-from railrl.torch.td3.td3 import TD3
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.torch.pytorch_util as ptu
+from rlkit.torch.td3.td3 import TD3
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
-from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv
+from rlkit.envs.vae_wrappers import VAEWrappedImageGoalEnv
 import torch
 
 def experiment(variant):

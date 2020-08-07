@@ -1,11 +1,11 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.rig.rig_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual.rig.rig_launcher import (
     rig_experiment, process_args
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.vae.vq_vae import VQ_VAE
-from railrl.torch.vae.vq_vae_trainer import VQ_VAETrainer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.vae.vq_vae import VQ_VAE
+from rlkit.torch.vae.vq_vae_trainer import VQ_VAETrainer
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from roboverse.envs.sawyer_rig_grasp_v1 import SawyerRigGraspV1Env
 

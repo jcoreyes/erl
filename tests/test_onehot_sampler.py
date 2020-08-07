@@ -2,11 +2,11 @@ import unittest
 
 import numpy as np
 
-from railrl.testing.np_test_case import NPTestCase
+from rlkit.testing.np_test_case import NPTestCase
 
-from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-from railrl.testing.testing_utils import is_binomial_trial_likely
-from railrl.testing.stub_classes import StubPolicy
+from rlkit.exploration_strategies.onehot_sampler import OneHotSampler
+from rlkit.testing.testing_utils import is_binomial_trial_likely
+from rlkit.testing.stub_classes import StubPolicy
 
 
 class TestOneHotSampler(NPTestCase):

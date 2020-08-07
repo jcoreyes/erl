@@ -1,15 +1,15 @@
 import sys
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.ros.baxter_env import BaxterEnv
-from railrl.envs.wrappers import convert_gym_space
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import continue_experiment
-from railrl.launchers.launcher_util import resume_torch_algorithm
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.parallel_ddpg import ParallelDDPG
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.torch import pytorch_util as ptu
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.ros.baxter_env import BaxterEnv
+from rlkit.envs.wrappers import convert_gym_space
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import continue_experiment
+from rlkit.launchers.launcher_util import resume_torch_algorithm
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.algos.parallel_ddpg import ParallelDDPG
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.torch import pytorch_util as ptu
 import random
 
 

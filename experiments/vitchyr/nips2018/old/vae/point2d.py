@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.vae.point2d_data import get_data
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.vae.point2d_data import get_data
 
 
 def experiment(variant):

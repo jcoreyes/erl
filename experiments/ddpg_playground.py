@@ -3,15 +3,15 @@ Prototype new ideas for DDPG.
 """
 import random
 
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.ddpg import DDPG
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.ddpg import DDPG
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
 
 from rllab.envs.box2d.cartpole_env import CartpoleEnv
 from rllab.envs.mujoco.ant_env import AntEnv

@@ -2,14 +2,14 @@ import unittest
 
 import numpy as np
 
-from railrl.envs.memory.continuous_memory_augmented import (
+from rlkit.envs.memory.continuous_memory_augmented import (
     ContinuousMemoryAugmented
 )
-from railrl.data_management.updatable_subtraj_replay_buffer import (
+from rlkit.data_management.updatable_subtraj_replay_buffer import (
     UpdatableSubtrajReplayBuffer
 )
-from railrl.testing.np_test_case import NPTestCase
-from railrl.testing.stub_classes import StubEnv
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.testing.stub_classes import StubEnv
 
 
 def rand(dim=1):

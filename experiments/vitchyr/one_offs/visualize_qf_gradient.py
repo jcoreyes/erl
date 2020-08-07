@@ -5,7 +5,7 @@ import joblib
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
 PATH = '/home/vitchyr/git/railrl/data/doodads3/01-26-ddpg-sweep-harder-tasks/01-26-ddpg-sweep-harder-tasks-id10-s68123/params.pkl'
 BAD_POLICY_PATH = '/home/vitchyr/git/railrl/data/doodads3/01-26-ddpg-sweep-harder-tasks/01-26-ddpg-sweep-harder-tasks-id3-s32528/params.pkl'

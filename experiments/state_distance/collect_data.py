@@ -2,13 +2,13 @@ import argparse
 
 from gym.envs.mujoco import PusherEnv
 
-from railrl.tf.state_distance.util import get_replay_buffer
-from railrl.envs.multitask.reacher_env import (
+from rlkit.tf.state_distance.util import get_replay_buffer
+from rlkit.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
 )
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
 
 
 def main(variant):

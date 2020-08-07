@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-from railrl.data_management.online_vae_log_prob_exploration_replay_buffer import \
+from rlkit.data_management.online_vae_log_prob_exploration_replay_buffer import \
     OnlineVaeLogProbExplorationRelabelingBuffer
-from railrl.launchers.experiments.murtaza.vae_exploration_bonus import vae_exploration_bonus_experiment
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae import vae_schedules
+from rlkit.launchers.experiments.murtaza.vae_exploration_bonus import vae_exploration_bonus_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae import vae_schedules
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

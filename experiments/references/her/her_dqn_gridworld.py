@@ -1,18 +1,18 @@
 import gym
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.launchers.launcher_util import setup_logger
-from railrl.samplers.data_collector import GoalConditionedPathCollector
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.samplers.data_collector import GoalConditionedPathCollector
 
-from railrl.torch.dqn.dqn import DQNTrainer
-from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.torch.dqn.dqn import DQNTrainer
+from rlkit.torch.dqn.policy import ArgmaxDiscretePolicy
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 try:
     import multiworld.envs.gridworlds

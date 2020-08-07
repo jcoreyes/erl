@@ -1,5 +1,5 @@
 import unittest
-import railrl.pythonplusplus as ppp
+import rlkit.pythonplusplus as ppp
 
 
 class TestDictionaryMethods(unittest.TestCase):

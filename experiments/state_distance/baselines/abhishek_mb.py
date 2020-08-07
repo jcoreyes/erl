@@ -3,21 +3,21 @@ import random
 import numpy as np
 import tensorflow as tf
 
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.her_half_cheetah import HalfCheetah, \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.multitask.her_half_cheetah import HalfCheetah, \
     half_cheetah_cost_fn
-from railrl.envs.multitask.her_pusher_env import Pusher2DEnv, \
+from rlkit.envs.multitask.her_pusher_env import Pusher2DEnv, \
     pusher2d_cost_fn
-from railrl.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
+from rlkit.envs.multitask.her_reacher_7dof_env import Reacher7Dof, \
     reacher7dof_cost_fn
-from railrl.envs.multitask.reacher_7dof import (
+from rlkit.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
 )
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.launchers.launcher_util import run_experiment
 
 
 def experiment(variant):
@@ -27,7 +27,7 @@ def experiment(variant):
         swimmer_cost_fn
     from hopper_env import HopperEnvNew
     from main_solution import train_dagger
-    from railrl.core import logger
+    from rlkit.core import logger
     from swimmer_env import SwimmerEnvNew
     env_name_or_class = variant['env_name_or_class']
 
@@ -45,7 +45,7 @@ def experiment(variant):
             raise NotImplementedError
     else:
         env = env_name_or_class()
-        from railrl.envs.wrappers import NormalizedBoxEnv
+        from rlkit.envs.wrappers import NormalizedBoxEnv
         env = NormalizedBoxEnv(env)
         if env_name_or_class == Pusher2DEnv:
             cost_fn = pusher2d_cost_fn

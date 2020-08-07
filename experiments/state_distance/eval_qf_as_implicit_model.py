@@ -14,14 +14,14 @@ import torch
 from torch.autograd import Variable
 from torch.optim import Adam
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.split_buffer import SplitReplayBuffer
-from railrl.envs.multitask.multitask_env import MultitaskEnv
-from railrl.envs.multitask.reacher_env import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.split_buffer import SplitReplayBuffer
+from rlkit.envs.multitask.multitask_env import MultitaskEnv
+from rlkit.envs.multitask.reacher_env import (
     XyMultitaskSimpleStateReacherEnv,
     position_from_angles,
 )
-from railrl.pythonplusplus import line_logger
+from rlkit.pythonplusplus import line_logger
 
 
 def to_var(array):

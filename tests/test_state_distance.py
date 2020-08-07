@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from railrl.state_distance.policies import UniversalPolicy
-from railrl.state_distance.rollout_util import multitask_rollout
-from railrl.testing.stub_classes import StubEnv
+from rlkit.state_distance.policies import UniversalPolicy
+from rlkit.state_distance.rollout_util import multitask_rollout
+from rlkit.testing.stub_classes import StubEnv
 
 
 class TestMultitaskRollout(unittest.TestCase):

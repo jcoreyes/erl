@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 import joblib
 
-from railrl.data_management.images import normalize_image
-from railrl.torch.core import eval_np
+from rlkit.data_management.images import normalize_image
+from rlkit.torch.core import eval_np
 
 filename = str(uuid.uuid4())
 

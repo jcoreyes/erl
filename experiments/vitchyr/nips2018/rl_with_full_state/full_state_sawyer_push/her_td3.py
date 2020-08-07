@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.data_management.her_replay_buffer import RelabelingReplayBuffer
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEasyEnv
-from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
-from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
-from railrl.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
-from railrl.launchers.experiments.vitchyr.multitask import her_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
+from rlkit.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
+from rlkit.envs.mujoco.sawyer_reset_free_push_env import SawyerResetFreePushEnv
+from rlkit.launchers.experiments.vitchyr.multitask import her_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     n_seeds = 1

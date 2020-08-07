@@ -1,14 +1,14 @@
 """
 Exampling of running DDPG on Double Reacher.
 """
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.memory_states.qfunctions import FeedForwardDuelingQFunction
-from railrl.envs.env_utils import gym_env
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.memory_states.qfunctions import FeedForwardDuelingQFunction
+from rlkit.envs.env_utils import gym_env
 from rllab.envs.normalized_env import normalize
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.ddpg import DDPG
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch.ddpg import DDPG
 from os.path import exists
 import joblib
 

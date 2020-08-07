@@ -2,16 +2,16 @@
 Test twin sac against various environments.
 """
 import gym
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.samplers.data_collector.step_collector import MdpStepCollector
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.sac import SACTrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )

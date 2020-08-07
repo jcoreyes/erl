@@ -14,11 +14,11 @@ import numpy as np
 
 from fanova import visualizer, CategoricalHyperparameter
 
-from railrl.misc.fanova_util import get_fanova_info, FanovaInfo, is_categorical, \
+from rlkit.misc.fanova_util import get_fanova_info, FanovaInfo, is_categorical, \
     plot_pairwise_marginal
-from railrl.misc.html_report import HTMLReport
-import railrl.visualization.visualization_util as vu
-from railrl.pythonplusplus import is_numeric
+from rlkit.misc.html_report import HTMLReport
+import rlkit.visualization.visualization_util as vu
+from rlkit.pythonplusplus import is_numeric
 from rllab.misc.instrument import query_yes_no
 
 

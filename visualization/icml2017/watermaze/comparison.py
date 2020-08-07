@@ -11,7 +11,7 @@ import matplotlib
 import numpy as np
 from collections import OrderedDict
 
-from railrl.misc.data_processing import Experiment
+from rlkit.misc.data_processing import Experiment
 import seaborn as sns
 
 

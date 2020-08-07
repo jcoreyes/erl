@@ -1,18 +1,18 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.dict_to_mdp_path_loader import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.demos.source.dict_to_mdp_path_loader import (
     DictToMDPPathLoader,
     EncoderDictToMDPPathLoader,
 )
-from railrl.launchers.experiments.ashvin.awr_grasping import (
+from rlkit.launchers.experiments.ashvin.awr_grasping import (
     awac_rig_experiment,
     experiment,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from roboverse.envs.sawyer_rig_multiobj_v0 import SawyerRigMultiobjV0
 
-from railrl.torch.networks import Clamp
+from rlkit.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(

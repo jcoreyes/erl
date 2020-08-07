@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.vitchyr.multiworld import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.vitchyr.multiworld import (
     her_td3_experiment,
     tdm_td3_experiment,
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

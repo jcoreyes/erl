@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
-from railrl.launchers.experiments.vitchyr.multitask import ddpg_experiment
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
+from rlkit.launchers.experiments.vitchyr.multitask import ddpg_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

@@ -3,12 +3,12 @@ import random
 import joblib
 import numpy as np
 
-from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardPolicy
-from railrl.torch.ddpg.combine_ddpg_qfs import DdpgQfCombiner
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+from rlkit.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardPolicy
+from rlkit.torch.ddpg.combine_ddpg_qfs import DdpgQfCombiner
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
 
 from rllab.envs.normalized_env import normalize
 
@@ -68,11 +68,11 @@ if __name__ == '__main__':
         )
     )
     # ddpg1_snapshot_path = (
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+    #     '/home/vitchyr/git/rllab-rail/rlkit/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
     #     'params.pkl'
     # )
     # replay_buffer1_path = (
-    #     '/home/vitchyr/git/rllab-rail/railrl/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
+    #     '/home/vitchyr/git/rllab-rail/rlkit/data/local/09-14-dev-separate-policies/09-14_dev-separate-policies_2017_09_14_15_24_06_0000--s-7544/'
     #     'extra_data.pkl'
     # )
     # ddpg2_snapshot_path = ddpg1_snapshot_path

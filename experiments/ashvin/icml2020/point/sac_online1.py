@@ -2,13 +2,13 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.launchers.experiments.awac.awac_rl import experiment
+from rlkit.launchers.experiments.awac.awac_rl import experiment
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.sac.policies import GaussianPolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.sac.policies import GaussianPolicy
 
-from railrl.envs.simple.point import Point
+from rlkit.envs.simple.point import Point
 
 if __name__ == "__main__":
     variant = dict(

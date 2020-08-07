@@ -6,8 +6,8 @@ import torch.optim as optim
 from torch import nn
 import matplotlib.pyplot as plt
 
-from railrl.pythonplusplus import identity
-from railrl.torch.vae.vae import VAE
+from rlkit.pythonplusplus import identity
+from rlkit.torch.vae.vae import VAE
 
 
 def latent_loss(z_mean, z_stddev):

@@ -1,22 +1,22 @@
 import random
 
-# from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
+# from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt, GoalXYPosAndVelAnt
+from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah, \
     GoalXPosHalfCheetah
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.reacher_7dof import (
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from rlkit.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofXyzGoalState,
     Reacher7DofXyzPosAndVelGoalState)
-from railrl.envs.multitask.walker2d_env import Walker2DTargetXPos
-from railrl.envs.wrappers import (
+from rlkit.envs.multitask.walker2d_env import Walker2DTargetXPos
+from rlkit.envs.wrappers import (
     ConvertEnvToTf, NormalizedBoxEnv
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 from sandbox.rocky.tf.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from sandbox.rocky.tf.policies.gaussian_mlp_policy import GaussianMLPPolicy
@@ -24,7 +24,7 @@ from sandbox.rocky.tf.optimizers.conjugate_gradient_optimizer import (
     ConjugateGradientOptimizer,
     FiniteDifferenceHvp,
 )
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

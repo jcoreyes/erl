@@ -3,12 +3,12 @@ RDPG Experiments
 """
 import random
 
-from railrl.envs.memory.high_low import HighLow
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.memory_states.policies import RecurrentPolicy
-from railrl.memory_states.qfunctions import RecurrentQFunction
-from railrl.torch.rdpg import Rdpg
+from rlkit.envs.memory.high_low import HighLow
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.memory_states.policies import RecurrentPolicy
+from rlkit.memory_states.qfunctions import RecurrentQFunction
+from rlkit.torch.rdpg import Rdpg
 
 
 def example(variant):

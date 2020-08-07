@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from railrl.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
-from railrl.testing.np_test_case import NPTestCase
-from railrl.testing.stub_classes import StubEnv
+from rlkit.data_management.subtraj_replay_buffer import SubtrajReplayBuffer
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.testing.stub_classes import StubEnv
 
 
 def create_buffer(subtraj_length):

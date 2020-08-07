@@ -1,18 +1,18 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-from railrl.launchers.launcher_util import run_experiment
-# from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
-from railrl.torch.grill.launcher import *
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+# from rlkit.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+from rlkit.torch.grill.launcher import *
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 
-from railrl.torch.arl.models.hinge_distance_model_trainer import HingeDistanceModelTrainer
+from rlkit.torch.arl.models.hinge_distance_model_trainer import HingeDistanceModelTrainer
 
-from railrl.torch.networks import CNN
+from rlkit.torch.networks import CNN
 
 # def experiment(variant):
 #     full_experiment_variant_preprocess(variant)

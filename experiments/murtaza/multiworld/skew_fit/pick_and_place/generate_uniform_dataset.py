@@ -2,7 +2,7 @@ import os.path as osp
 import numpy as np
 from multiworld.core.image_env import ImageEnv, unormalize_image
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import get_image_presampled_goals
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.misc.asset_loader import load_local_or_remote_file
 
 def generate_uniform_dataset_pick_and_place(
         env_class=None,

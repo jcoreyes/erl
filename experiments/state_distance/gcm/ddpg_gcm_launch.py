@@ -2,19 +2,19 @@ import random
 
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.gcm.gcm_ddpg import GcmDdpg
-from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import FlattenMlp
-from railrl.torch.networks import TanhMlpPolicy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.gcm.gcm_ddpg import GcmDdpg
+from rlkit.torch.modules import HuberLoss
+from rlkit.torch.networks import FlattenMlp
+from rlkit.torch.networks import TanhMlpPolicy
 
 
 def experiment(variant):

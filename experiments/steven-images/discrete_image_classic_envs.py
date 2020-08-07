@@ -4,15 +4,15 @@ Run DQN on grid world.
 
 import gym
 
-from railrl.torch.dqn.double_dqn import DoubleDQN
+from rlkit.torch.dqn.double_dqn import DoubleDQN
 
-import railrl.images.camera as camera
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import CNN
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.envs.wrappers import DiscretizeEnv, ImageMujocoEnv, NormalizedBoxEnv
+import rlkit.images.camera as camera
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import CNN
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.envs.wrappers import DiscretizeEnv, ImageMujocoEnv, NormalizedBoxEnv
 
 
 def experiment(variant):

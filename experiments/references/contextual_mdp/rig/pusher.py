@@ -1,11 +1,11 @@
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
-from railrl.launchers.contextual.rig.rig_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.launchers.contextual.rig.rig_launcher import (
     rig_experiment, process_args,
 )
-from railrl.torch.vae.conv_vae import (
+from rlkit.torch.vae.conv_vae import (
     imsize48_default_architecture_with_more_hidden_layers
 )
 

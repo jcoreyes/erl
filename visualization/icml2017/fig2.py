@@ -12,7 +12,7 @@ import os
 from os.path import join
 import json
 from collections import defaultdict, OrderedDict
-from railrl.pythonplusplus import nested_dict_to_dot_map_dict
+from rlkit.pythonplusplus import nested_dict_to_dot_map_dict
 import seaborn
 
 def main():

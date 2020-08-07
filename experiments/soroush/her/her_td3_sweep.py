@@ -5,9 +5,9 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPu
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_experiment
+import rlkit.misc.hyperparameter as hyp
 
 variant = dict(
     algo_kwargs=dict(

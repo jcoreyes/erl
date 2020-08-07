@@ -3,8 +3,8 @@ import os.path as osp
 import numpy as np
 
 from multiworld.core.image_env import unormalize_image, ImageEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
-import railrl.torch.pytorch_util as ptu
+from rlkit.misc.asset_loader import load_local_or_remote_file
+import rlkit.torch.pytorch_util as ptu
 
 def generate_uniform_dataset_door(
         num_imgs=1000,

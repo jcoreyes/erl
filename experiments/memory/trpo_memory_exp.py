@@ -1,7 +1,7 @@
 """
 Check TRPO on OneCharMemory task.
 """
-from railrl.launchers.launcher_util import (
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
@@ -15,14 +15,14 @@ def run_linear_ocm_exp(variant):
         ConjugateGradientOptimizer,
         FiniteDifferenceHvp,
     )
-    from railrl.envs.flattened_product_box import FlattenedProductBox
-    from railrl.envs.memory.continuous_memory_augmented import (
+    from rlkit.envs.flattened_product_box import FlattenedProductBox
+    from rlkit.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.envs.memory.one_char_memory import (
+    from rlkit.envs.memory.one_char_memory import (
         OneCharMemoryEndOnly,
     )
-    from railrl.launchers.launcher_util import (
+    from rlkit.launchers.launcher_util import (
         set_seed,
     )
 

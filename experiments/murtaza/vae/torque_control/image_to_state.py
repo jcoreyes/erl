@@ -1,14 +1,14 @@
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import CNN
-from railrl.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import CNN
+from rlkit.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
 
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     ptu.set_gpu_mode(True)
     info = dict()
     logger.save_extra_data(info)

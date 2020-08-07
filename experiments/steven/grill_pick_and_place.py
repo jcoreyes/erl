@@ -1,22 +1,22 @@
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.multitask.pusher2d import FullPusher2DEnv
-from railrl.images.camera import (
+from rlkit.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
+from rlkit.envs.multitask.point2d import MultitaskImagePoint2DEnv
+from rlkit.envs.multitask.pusher2d import FullPusher2DEnv
+from rlkit.images.camera import (
     # sawyer_init_camera,
     # sawyer_init_camera_zoomed_in,
     sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_out_fixed,
 )
 
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 from multiworld.envs.mujoco.cameras import \
         sawyer_pick_and_place_camera, sawyer_pick_and_place_camera_slanted_angle
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.envs.goal_generation.pickup_goal_dataset import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_full_experiment
+from rlkit.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \

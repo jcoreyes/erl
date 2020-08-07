@@ -1,15 +1,15 @@
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.sawyer_env_v2 import MultiTaskSawyerXYZReachingEnv
-from railrl.exploration_strategies.base import (
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.sawyer_env_v2 import MultiTaskSawyerXYZReachingEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, TdmPolicy
-from railrl.torch.networks.experimental import HuberLoss
-import railrl.torch.pytorch_util as ptu
-import railrl.misc.hyperparameter as hyp
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.tdm_ddpg import TdmDdpg
+from rlkit.state_distance.tdm_networks import TdmNormalizer, TdmQf, TdmPolicy
+from rlkit.torch.networks.experimental import HuberLoss
+import rlkit.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
 
 def experiment(variant):
     env_params = variant['env_params']

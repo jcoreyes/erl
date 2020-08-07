@@ -4,8 +4,8 @@ sys.path.append(".")
 
 from rllab.misc.ext import is_iterable, set_seed
 from rllab.misc.instrument import concretize
-from railrl.launchers import config
-from railrl.core import logger
+from rlkit.launchers import config
+from rlkit.core import logger
 import argparse
 import os.path as osp
 import datetime

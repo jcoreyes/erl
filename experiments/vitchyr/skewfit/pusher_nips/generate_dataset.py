@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import (
     init_sawyer_camera_v4,
     sawyer_init_camera_zoomed_in,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
     variant = dict(

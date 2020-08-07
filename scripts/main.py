@@ -4,17 +4,17 @@ import copy
 
 import tensorflow as tf
 
-from railrl.launchers.rnn_launchers import (
+from rlkit.launchers.rnn_launchers import (
     bptt_launcher,
 )
-from railrl.launchers.algo_launchers import (
+from rlkit.launchers.algo_launchers import (
     mem_ddpg_launcher,
     my_ddpg_launcher,
     naf_launcher,
     random_action_launcher,
     get_env_settings)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc import hyperparameter as hp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc import hyperparameter as hp
 
 BATCH_SIZE = 32
 N_EPOCHS = 100

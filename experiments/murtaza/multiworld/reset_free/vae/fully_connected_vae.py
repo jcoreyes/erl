@@ -1,13 +1,13 @@
 import torch
 
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.reset_free.pointmass.generate_state_based_vae_dataset import generate_vae_dataset
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.vae import VAE, VAETrainer, AutoEncoder
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.torch.vae.vae import VAE, VAETrainer, AutoEncoder
 import numpy as np
-from railrl.pythonplusplus import identity
+from rlkit.pythonplusplus import identity
 
 def generate_dataset(N=1000, test_p=.9):
     xs = np.linspace(-np.pi*5, 5*np.pi, N).reshape(-1, 1)
@@ -25,7 +25,7 @@ def generate_dataset(N=1000, test_p=.9):
     return train_dataset, test_dataset, info
 
 def experiment(variant):
-    from railrl.core import logger
+    from rlkit.core import logger
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = generate_dataset(

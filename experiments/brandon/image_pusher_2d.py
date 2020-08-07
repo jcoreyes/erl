@@ -4,16 +4,16 @@ Run PyTorch Soft Actor Critic on ImagePusher2dEnv.
 
 import numpy as np
 
-from railrl.torch.networks.experimental import HuberLoss
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-from railrl.torch.sac.sac import TwinSAC
+from rlkit.torch.networks.experimental import HuberLoss
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sac.policies import TanhCNNGaussianPolicy
+from rlkit.torch.sac.sac import TwinSAC
 
-from railrl.torch.networks import CNN, MergedCNN
+from rlkit.torch.networks import CNN, MergedCNN
 
-from railrl.envs.mujoco.image_pusher_2d_brandon import ImageForkReacher2dEnv
+from rlkit.envs.mujoco.image_pusher_2d_brandon import ImageForkReacher2dEnv
 
 
 def experiment(variant):

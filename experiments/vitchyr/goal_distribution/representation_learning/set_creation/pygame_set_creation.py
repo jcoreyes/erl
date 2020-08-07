@@ -1,6 +1,6 @@
-from railrl.torch.sets import set_creation
+from rlkit.torch.sets import set_creation
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.envs.images import EnvRenderer
+from rlkit.envs.images import EnvRenderer
 
 
 def main():

@@ -2,13 +2,13 @@ import argparse
 
 import joblib
 
-from railrl.core import logger
-from railrl.samplers.util import rollout
-from railrl.torch.mpc.collocation import \
+from rlkit.core import logger
+from rlkit.samplers.util import rollout
+from rlkit.torch.mpc.collocation import \
     CollocationMpcController
-from railrl.state_distance.rollout_util import multitask_rollout
-from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.core import PyTorchModule
+from rlkit.state_distance.rollout_util import multitask_rollout
+from rlkit.state_distance.util import merge_into_flat_obs
+from rlkit.torch.core import PyTorchModule
 
 PATH = '/home/vitchyr/git/railrl/data/local/01-22-dev-sac-tdm-launch/01-22-dev-sac-tdm-launch_2018_01_22_13_31_47_0000--s-3096/params.pkl'
 PATH = '/home/vitchyr/git/railrl/data/doodads3/01-23-reacher-full-ddpg' \

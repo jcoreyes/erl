@@ -2,11 +2,11 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
-from railrl.launchers.experiments.awac.awac_rl import experiment
+from rlkit.demos.source.dict_to_mdp_stacked_path_loader import DictToMDPStackedPathLoader
+from rlkit.launchers.experiments.awac.awac_rl import experiment
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(

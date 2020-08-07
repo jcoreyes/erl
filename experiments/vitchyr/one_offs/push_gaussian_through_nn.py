@@ -37,7 +37,7 @@ from torch import nn as nn
 from torch.autograd import Variable
 from torch.optim import Adam
 
-from railrl.torch.networks import Mlp
+from rlkit.torch.networks import Mlp
 
 INPUT_SIZE = 10
 OUTPUT_SIZE = 1

@@ -1,14 +1,14 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.multitask.pusher2d import FullPusher2DEnv
-from railrl.images.camera import sawyer_init_camera
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.mujoco.sawyer_push_env import SawyerPushXYEnv
+from rlkit.envs.multitask.point2d import MultitaskImagePoint2DEnv
+from rlkit.envs.multitask.pusher2d import FullPusher2DEnv
+from rlkit.images.camera import sawyer_init_camera
 
-from railrl.launchers.arglauncher import run_variants
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.relabeled_vae_experiment import experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.relabeled_vae_experiment import experiment
+from rlkit.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     vae_paths = {

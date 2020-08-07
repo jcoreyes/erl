@@ -12,7 +12,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import nn as nn
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
 SWIRL_RATE = 1
 T = 10

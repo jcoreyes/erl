@@ -1,15 +1,15 @@
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.samplers.util import rollout
-from railrl.torch.core import PyTorchModule
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.samplers.util import rollout
+from rlkit.torch.core import PyTorchModule
 import matplotlib.pyplot as plt
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.torch.pytorch_util import set_gpu_mode
 import argparse
 import pickle
 import uuid
-from railrl.core import logger
+from rlkit.core import logger
 from torchvision.utils import save_image
 import numpy as np
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 import cv2
 
 

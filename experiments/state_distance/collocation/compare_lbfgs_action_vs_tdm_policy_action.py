@@ -2,8 +2,8 @@ import argparse
 
 import joblib
 
-from railrl.policies.simple import RandomPolicy
-from railrl.state_distance.rollout_util import multitask_rollout
+from rlkit.policies.simple import RandomPolicy
+from rlkit.state_distance.rollout_util import multitask_rollout
 
 if __name__ == "__main__":
 

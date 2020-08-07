@@ -3,13 +3,13 @@ from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 import numpy as np
 import time
 
-from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+from rlkit.misc.asset_loader import local_path_from_s3_or_local_path
 import joblib
 import os.path as osp
 
-from railrl.torch.core import torch_ify, np_ify
+from rlkit.torch.core import torch_ify, np_ify
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 import os
 
 def create_demo_dataset(env, n=1000, render=False):

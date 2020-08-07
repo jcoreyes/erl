@@ -11,13 +11,13 @@ import matplotlib
 import numpy as np
 from collections import OrderedDict
 
-from railrl.misc.data_processing import Experiment
+from rlkit.misc.data_processing import Experiment
 import seaborn
 
 
 def main():
     # matplotlib.rcParams.update({'font.size': 39})
-    # base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation"
+    # base_dir = "/home/vitchyr/git/rllab-rail/rlkit/data/papers/icml2017/watermaze/ablation"
     base_dir = "/home/vitchyr/git/rllab-rail/railrl/data/papers/icml2017/watermaze/ablation2"
     experiment = Experiment(base_dir)
 

@@ -1,8 +1,8 @@
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.ashvin.awr_rl import state_td3bc_experiment
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.ashvin.awr_rl import state_td3bc_experiment
 
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(

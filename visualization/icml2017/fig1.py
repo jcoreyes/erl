@@ -16,8 +16,8 @@ from os.path import join
 import json
 from collections import defaultdict, OrderedDict
 
-from railrl.misc.data_processing import get_dirs
-from railrl.pythonplusplus import nested_dict_to_dot_map_dict
+from rlkit.misc.data_processing import get_dirs
+from rlkit.pythonplusplus import nested_dict_to_dot_map_dict
 import seaborn as sns
 
 

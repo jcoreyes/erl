@@ -6,13 +6,13 @@ from gym.envs.mujoco import (
     Walker2dEnv,
 )
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
-from railrl.torch.networks import ConcatMlp
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
+from rlkit.torch.networks import ConcatMlp
 
 
 def experiment(variant):

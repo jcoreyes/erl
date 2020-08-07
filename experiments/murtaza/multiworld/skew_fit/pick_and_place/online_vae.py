@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.envs.goal_generation.pickup_goal_dataset import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset, get_image_presampled_goals_from_vae_env
 from multiworld.envs.mujoco.cameras import \
         sawyer_pick_and_place_camera

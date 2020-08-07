@@ -5,17 +5,17 @@ import random
 
 from torch.nn import functional as F
 
-from railrl.envs.pygame.water_maze import (
+from rlkit.envs.pygame.water_maze import (
     WaterMazeMemory,
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import (
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.launchers.memory_bptt_launchers import bptt_ddpg_launcher
-from railrl.pythonplusplus import identity
-from railrl.memory_states.qfunctions import MemoryQFunction
-from railrl.torch.rnn import GRUCell
+from rlkit.launchers.memory_bptt_launchers import bptt_ddpg_launcher
+from rlkit.pythonplusplus import identity
+from rlkit.memory_states.qfunctions import MemoryQFunction
+from rlkit.torch.rnn import GRUCell
 
 if __name__ == '__main__':
     n_seeds = 1

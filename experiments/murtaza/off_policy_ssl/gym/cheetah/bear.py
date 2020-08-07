@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
 import os
 
-from railrl.misc.asset_loader import sync_down
+from rlkit.misc.asset_loader import sync_down
 
 
 def experiment(variant):
-    from railrl.core import logger
+    from rlkit.core import logger
     demo_path = sync_down(variant['demo_path'])
     off_policy_path = sync_down(variant['off_policy_path'])
     logdir = logger.get_snapshot_dir()

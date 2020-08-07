@@ -7,7 +7,7 @@ import joblib
 
 import torch
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

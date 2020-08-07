@@ -1,10 +1,10 @@
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import generate_vae_dataset
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright
-from railrl.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_reset import SawyerPushAndReachXYEnv
-from railrl.torch.vae.acai import ACAI, ACAITrainer
-import railrl.misc.hyperparameter as hyp
+from rlkit.torch.vae.acai import ACAI, ACAITrainer
+import rlkit.misc.hyperparameter as hyp
 
 def experiment(variant):
     lmbda = variant['lmbda']

@@ -7,12 +7,12 @@ import torch
 from pathlib import Path
 from torch import optim
 
-import railrl.torch.pytorch_util as ptu
-from railrl.policies.simple import RandomPolicy
-from railrl.samplers.util import rollout
-from railrl.state_distance.tdm_networks import TdmQf
-from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.core import PyTorchModule
+import rlkit.torch.pytorch_util as ptu
+from rlkit.policies.simple import RandomPolicy
+from rlkit.samplers.util import rollout
+from rlkit.state_distance.tdm_networks import TdmQf
+from rlkit.state_distance.util import merge_into_flat_obs
+from rlkit.torch.core import PyTorchModule
 
 TDM_PATH = '/home/vitchyr/git/railrl/data/local/01-22-dev-sac-tdm-launch/01' \
            '-22-dev-sac-tdm-launch_2018_01_22_13_31_47_0000--s-3096/params.pkl'

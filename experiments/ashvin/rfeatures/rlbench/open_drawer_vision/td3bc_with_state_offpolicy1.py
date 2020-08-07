@@ -1,18 +1,18 @@
 import gym
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import \
+from rlkit.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import setup_logger
-from railrl.samplers.data_collector import GoalConditionedPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-# from railrl.torch.td3.td3 import TD3
-from railrl.demos.td3_bc import TD3BCTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.samplers.data_collector import GoalConditionedPathCollector
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+# from rlkit.torch.td3.td3 import TD3
+from rlkit.demos.td3_bc import TD3BCTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 
@@ -20,12 +20,12 @@ from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 # from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
 # from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
-from railrl.launchers.arglauncher import run_variants
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
 
-# from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
-from railrl.launchers.experiments.ashvin.rfeatures.state_rl import state_td3bc_experiment
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
+# from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+from rlkit.launchers.experiments.ashvin.rfeatures.state_rl import state_td3bc_experiment
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_rl import encoder_wrapped_td3bc_experiment
 
 from multiworld.envs.rlbench.rlbench_env import RLBenchEnv
 from rlbench.tasks.open_drawer import OpenDrawer

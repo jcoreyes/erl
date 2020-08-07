@@ -1,11 +1,11 @@
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):
     import gym
     from baselines import deepq
-    from railrl.core import logger
+    from rlkit.core import logger
 
     def callback(lcl, glb):
         # only stop training after number of time steps have been reached

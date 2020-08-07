@@ -15,8 +15,8 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-from railrl.envs.pygame.water_maze import WaterMaze
-import railrl.visualization.visualization_util as vu
+from rlkit.envs.pygame.water_maze import WaterMaze
+import rlkit.visualization.visualization_util as vu
 
 USE_TIME = True
 

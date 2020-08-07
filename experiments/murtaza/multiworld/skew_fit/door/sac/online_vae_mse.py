@@ -1,11 +1,11 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.decoder_distributions.mse_decoder import architecture
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant=dict(

@@ -2,15 +2,15 @@ import argparse
 
 import numpy as np
 
-from railrl.envs.mujoco.pusher_avoider_3dof import PusherAvoiderEnv3DOF
-from railrl.envs.pygame.water_maze import (
+from rlkit.envs.mujoco.pusher_avoider_3dof import PusherAvoiderEnv3DOF
+from rlkit.envs.pygame.water_maze import (
     WaterMaze,
     WaterMaze1D,
     WaterMazeEasy1D,
     WaterMazeMemory1D,
     WaterMazeHard,
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--small", action='store_true', help="Use a small maze.")

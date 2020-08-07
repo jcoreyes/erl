@@ -1,5 +1,5 @@
 import os
-from railrl.misc.data_processing import get_trials
+from rlkit.misc.data_processing import get_trials
 from subprocess import call
 
 

@@ -3,13 +3,13 @@ Run PyTorch DDPG on HalfCheetah.
 """
 import random
 
-from railrl.envs.env_utils import get_dim
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.ddpg import DDPG
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+from rlkit.envs.env_utils import get_dim
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.ddpg import DDPG
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
@@ -18,10 +18,10 @@ from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.inverted_double_pendulum_env import (
     InvertedDoublePendulumEnv
 )
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.envs.mujoco.pusher2d import Pusher2DEnv
+from rlkit.envs.multitask.reacher_env import GoalStateSimpleStateReacherEnv
+from rlkit.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
 

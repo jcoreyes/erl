@@ -1,33 +1,33 @@
 import argparse
 import pickle
 
-from railrl.core import logger
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.samplers.rollout_functions import (
+from rlkit.core import logger
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.vae_wrappers import VAEWrappedEnv
+from rlkit.samplers.rollout_functions import (
     multitask_rollout,
     contextual_rollout,
 )
-from railrl.torch.core import PyTorchModule
-import railrl.torch.pytorch_util as ptu
-from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+from rlkit.torch.core import PyTorchModule
+import rlkit.torch.pytorch_util as ptu
+from rlkit.misc.asset_loader import local_path_from_s3_or_local_path
 import torch
-from railrl.launchers.arglauncher import run_variants
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.launchers.experiments.goal_distribution.irl_launcher import \
+from rlkit.launchers.experiments.goal_distribution.irl_launcher import \
     representation_learning_with_goal_distribution_launcher
 
-from railrl.launchers.launcher_util import run_experiment
-# from railrl.torch.sets.launcher import test_offline_set_vae
-# from railrl.launchers.masking_launcher import default_masked_reward_fn
-from railrl.envs.contextual.mask_conditioned import default_masked_reward_fn
-from railrl.launchers.exp_launcher import rl_context_experiment
+from rlkit.launchers.launcher_util import run_experiment
+# from rlkit.torch.sets.launcher import test_offline_set_vae
+# from rlkit.launchers.masking_launcher import default_masked_reward_fn
+from rlkit.envs.contextual.mask_conditioned import default_masked_reward_fn
+from rlkit.launchers.exp_launcher import rl_context_experiment
 
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
-from railrl.launchers.contextual.rig.rig_launcher import get_gym_env
+from rlkit.launchers.contextual.rig.rig_launcher import get_gym_env
 
 def simulate_policy(args):
     if args.pause:

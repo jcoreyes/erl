@@ -1,15 +1,15 @@
 import argparse
 import random
 
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.policies import (
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv, PerfectPoint2DQF
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.policies import (
     ArgmaxQFPolicy,
     PseudoModelBasedPolicy,
     ConstrainedOptimizationOCPolicy,
 )
 from state_distance.rollout_util import multitask_rollout
-from railrl.core import logger
+from rlkit.core import logger
 
 
 def experiment(variant):

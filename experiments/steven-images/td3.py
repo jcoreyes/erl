@@ -1,19 +1,19 @@
 from gym.envs.mujoco import HopperEnv
 import gym
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy, CNN, CNNPolicy, MergedCNN
-from railrl.torch.td3.td3 import TD3
-from railrl.torch.ddpg.ddpg import DDPG
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy, CNN, CNNPolicy, MergedCNN
+from rlkit.torch.td3.td3 import TD3
+from rlkit.torch.ddpg.ddpg import DDPG
 
-import railrl.images.viewers as viewers
-from railrl.envs.wrappers import ImageEnv
+import rlkit.images.viewers as viewers
+from rlkit.envs.wrappers import ImageEnv
 import torch
 
 def experiment(variant):

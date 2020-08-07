@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 
 import joblib
 
-from railrl.misc.eval_util import get_generic_path_information
-from railrl.state_distance.rollout_util import multitask_rollout
-from railrl.core import logger
+from rlkit.misc.eval_util import get_generic_path_information
+from rlkit.state_distance.rollout_util import multitask_rollout
+from rlkit.core import logger
 
 def main():
     parser = argparse.ArgumentParser()

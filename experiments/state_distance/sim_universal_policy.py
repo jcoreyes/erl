@@ -4,10 +4,10 @@ import json
 import joblib
 from pathlib import Path
 
-import railrl.torch.pytorch_util as ptu
-from railrl.misc.eval_util import get_generic_path_information
-from railrl.state_distance.rollout_util import multitask_rollout
-from railrl.core import logger
+import rlkit.torch.pytorch_util as ptu
+from rlkit.misc.eval_util import get_generic_path_information
+from rlkit.state_distance.rollout_util import multitask_rollout
+from rlkit.core import logger
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()

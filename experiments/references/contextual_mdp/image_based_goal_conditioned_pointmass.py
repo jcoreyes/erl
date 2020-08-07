@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.image_based import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual.image_based import (
     image_based_goal_conditioned_sac_experiment
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(

@@ -1,8 +1,8 @@
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import train_vae
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import train_vae
 
 
 def get_dataset(variant):

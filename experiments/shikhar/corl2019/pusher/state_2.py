@@ -8,21 +8,21 @@ Note that one epoch = 5k steps, so 200 epochs = 1 million steps.
 """
 import gym
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import \
+from rlkit.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.launchers.launcher_util import setup_logger
-from railrl.samplers.data_collector import GoalConditionedPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.samplers.data_collector import GoalConditionedPathCollector
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 
 def experiment(variant):

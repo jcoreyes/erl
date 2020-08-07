@@ -1,21 +1,21 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.launchers.launcher_util import run_experiment
 from torch import nn as nn
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.torch.ddpg.feat_point_ddpg import FeatPointDDPG
-from railrl.torch.networks import FeatPointMlp
-from railrl.torch.networks import ConcatMlp, AETanhPolicy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.base import \
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.torch.ddpg.feat_point_ddpg import FeatPointDDPG
+from rlkit.torch.networks import FeatPointMlp
+from rlkit.torch.networks import ConcatMlp, AETanhPolicy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.envs.wrappers import ImageMujocoWithObsEnv
-#from railrl.images.camera import pusher_2d_init_camera
-#from railrl.envs.mujoco.simple_sawyer import SawyerXYZEnv
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+from rlkit.envs.wrappers import ImageMujocoWithObsEnv
+#from rlkit.images.camera import pusher_2d_init_camera
+#from rlkit.envs.mujoco.simple_sawyer import SawyerXYZEnv
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 
-import railrl.images.camera as camera
-from railrl.data_management.env_replay_buffer import AEEnvReplayBuffer
+import rlkit.images.camera as camera
+from rlkit.data_management.env_replay_buffer import AEEnvReplayBuffer
 
 
 def experiment(variant):

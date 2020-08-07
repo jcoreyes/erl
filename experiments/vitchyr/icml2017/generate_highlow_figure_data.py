@@ -1,11 +1,11 @@
 import random
 
-from railrl.envs.memory.high_low import HighLow
-from railrl.launchers.launcher_util import (
+from rlkit.envs.memory.high_low import HighLow
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.launchers.memory_bptt_launchers import (
+from rlkit.launchers.memory_bptt_launchers import (
     trpo_launcher,
     mem_trpo_launcher,
     rtrpo_launcher,
@@ -14,7 +14,7 @@ from railrl.launchers.memory_bptt_launchers import (
     rdpg_launcher,
     our_method_launcher_add_defaults,
 )
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+from rlkit.misc.hyperparameter import DeterministicHyperparameterSweeper
 
 if __name__ == '__main__':
     n_seeds = 1

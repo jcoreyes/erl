@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_full_experiment
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
     variant = dict(

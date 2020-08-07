@@ -1,8 +1,8 @@
-from railrl.envs.mujoco.sawyer_push_and_reach_env import SawyerMultiPushAndReachEasyEnv
-from railrl.images.camera import sawyer_init_camera_zoomed_in
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.relabeled_vae_experiment import experiment
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import SawyerMultiPushAndReachEasyEnv
+from rlkit.images.camera import sawyer_init_camera_zoomed_in
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 5
@@ -10,7 +10,7 @@ if __name__ == "__main__":
     exp_prefix = 'sawyer_multi_push_autoencoder_ablation_final'
 
     vae_paths = {
-         # # "16": "/home/murtaza/Documents/rllab/railrl/data/local/05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/itr_30.pkl"
+         # # "16": "/home/murtaza/Documents/rllab/rlkit/data/local/05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/itr_30.pkl"
          # "16": "05-17-sawyer-multi-push-ae/05-17-sawyer_multi_push_ae_2018_05_17_12_37_03_0000--s-9903/itr_30.pkl"
         "4": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/multi_push.pkl"
     }

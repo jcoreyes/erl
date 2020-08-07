@@ -1,19 +1,19 @@
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-# from railrl.data_management.tau_replay_buffer import TauReplayBuffer
-from railrl.data_management.tau_replay_buffer import TauReplayBuffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, Reacher7DofMultitaskEnv, Reacher7DofFullGoal
-from railrl.envs.multitask.reacher_env import MultitaskReacherEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+# from rlkit.data_management.tau_replay_buffer import TauReplayBuffer
+from rlkit.data_management.tau_replay_buffer import TauReplayBuffer
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState, Reacher7DofMultitaskEnv, Reacher7DofFullGoal
+from rlkit.envs.multitask.reacher_env import MultitaskReacherEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.state_distance.tdm_supervised import TdmSupervised
-import railrl.torch.pytorch_util as ptu
-from railrl.state_distance.tdm_networks import TdmPolicy
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.state_distance.tdm_supervised import TdmSupervised
+import rlkit.torch.pytorch_util as ptu
+from rlkit.state_distance.tdm_networks import TdmPolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):

@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.murtaza.state_based_vae import grill_her_td3_full_experiment
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.murtaza.state_based_vae import grill_her_td3_full_experiment
 from experiments.murtaza.multiworld.reset_free.pointmass.generate_state_based_vae_dataset import generate_vae_dataset
-from railrl.pythonplusplus import identity
+from rlkit.pythonplusplus import identity
 
 variant = dict(
     env_class=Point2DWallEnv,

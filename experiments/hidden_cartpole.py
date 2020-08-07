@@ -1,8 +1,8 @@
-from railrl.envs.memory.hidden_cartpole import HiddenCartpoleEnv
+from rlkit.envs.memory.hidden_cartpole import HiddenCartpoleEnv
 import numpy as np
 import time
 
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
 
 env = HiddenCartpoleEnv()
 

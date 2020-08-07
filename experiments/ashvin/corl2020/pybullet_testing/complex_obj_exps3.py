@@ -1,11 +1,11 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.demos.source.contextual_mdp_path_loader import EncodingContextualPathLoader
-from railrl.launchers.experiments.ashvin.awac_rig import awac_rig_experiment
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.demos.source.contextual_mdp_path_loader import EncodingContextualPathLoader
+from rlkit.launchers.experiments.ashvin.awac_rig import awac_rig_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy
 from roboverse.envs.sawyer_rig_multiobj_v0 import SawyerRigMultiobjV0
-from railrl.torch.networks import Clamp
+from rlkit.torch.networks import Clamp
 
 demo_paths_1=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True,),
             dict(path='sasha/complex_obj/4dof_complex_objects_demos_1.pkl',obs_dict=True,is_demo=True,),

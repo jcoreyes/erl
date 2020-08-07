@@ -1,7 +1,7 @@
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
-from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.murtaza.multiworld import her_td3_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     variant = dict(

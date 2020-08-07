@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.disentanglement.contextual_encoder_distance_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.disentanglement.contextual_encoder_distance_launcher import (
     encoder_goal_conditioned_sac_experiment
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
 
 if __name__ == "__main__":
     variant = dict(

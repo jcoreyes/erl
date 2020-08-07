@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from railrl.misc import hyperparameter as hp
-from railrl.testing.testing_utils import is_binomial_trial_likely, are_dict_lists_equal
+from rlkit.misc import hyperparameter as hp
+from rlkit.testing.testing_utils import is_binomial_trial_likely, are_dict_lists_equal
 
 
 class TestHyperparameters(unittest.TestCase):

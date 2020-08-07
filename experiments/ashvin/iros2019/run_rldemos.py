@@ -11,9 +11,9 @@ from rlkit.torch.sac.twin_sac import TwinSAC
 from ss.remote.doodad.arglauncher import run_variants
 from sawyer_control.envs.sawyer_insertion_refined_waterproof_dense_pureRL import SawyerHumanControlEnv
 
-from railrl.demos.td3_bc import TD3BC
+from rlkit.demos.td3_bc import TD3BC
 
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
 
 def experiment(variant):
     env = SawyerHumanControlEnv(action_mode='joint_space_impd', position_action_scale=1, max_speed=0.015)

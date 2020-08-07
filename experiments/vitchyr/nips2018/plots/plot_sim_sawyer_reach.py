@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 
-from railrl.misc.data_processing import get_trials
-from railrl.visualization.plot_util import plot_trials, padded_ma_filter
+from rlkit.misc.data_processing import get_trials
+from rlkit.visualization.plot_util import plot_trials, padded_ma_filter
 
 plt.style.use("ggplot")
 
 
 vae_trials = get_trials(
-    # '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-reach-vae-rl-log-prob-rewards-2',
+    # '/home/vitchyr/git/rlkit/data/doodads3/05-12-sawyer-reach-vae-rl-log-prob-rewards-2',
     '/home/vitchyr/git/railrl/data/doodads3/05-14-paper-sawyer-reach-vae-rl-lprob-rewards-min-var-after-fact/',
     criteria={
         'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
@@ -33,7 +33,7 @@ state_tdm_ddpg = get_trials(
     },
 )
 # vae_trials = get_trials(
-#     '/home/vitchyr/git/railrl/data/doodads3/05-12-sawyer-reach-vae-rl-reproduce-2/',
+#     '/home/vitchyr/git/rlkit/data/doodads3/05-12-sawyer-reach-vae-rl-reproduce-2/',
 #     criteria={
 #         'replay_kwargs.fraction_resampled_goals_are_env_goals': 0.5,
 #         'replay_kwargs.fraction_goals_are_rollout_goals': 0.2,

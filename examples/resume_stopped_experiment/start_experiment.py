@@ -9,13 +9,13 @@ See resume_experiment.py to see wehat to do next
 """
 import random
 
-from railrl.exploration_strategies.base import \
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.ddpg import DDPG
-import railrl.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.ddpg import DDPG
+import rlkit.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.normalized_env import normalize

@@ -1,8 +1,8 @@
-from railrl.torch.vae.visualize_vae import (
+from rlkit.torch.vae.visualize_vae import (
     VAEVisualizer, ConditionalVAEVisualizer, tk
 )
 
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch import pytorch_util as ptu
 import argparse
 # ptu.set_gpu_mode(True)
 

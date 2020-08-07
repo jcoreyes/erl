@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sets.rl_launcher import disco_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sets.rl_launcher import disco_experiment
 
 if __name__ == "__main__":
     variant = dict(

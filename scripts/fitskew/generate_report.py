@@ -8,10 +8,10 @@ import numpy as np
 import re
 from skvideo.io import vwrite
 
-from railrl.misc.html_report import HTMLReport
-from railrl.visualization.visualization_util import gif
-from railrl.torch.vae.skew.datasets import project_square_border_np_4x4
-from railrl.torch.vae.skew.skewed_vae_with_histogram import (
+from rlkit.misc.html_report import HTMLReport
+from rlkit.visualization.visualization_util import gif
+from rlkit.torch.vae.skew.datasets import project_square_border_np_4x4
+from rlkit.torch.vae.skew.skewed_vae_with_histogram import (
     visualize_vae_samples, visualize_vae,
 )
 

@@ -1,5 +1,5 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.wrappers import ImageMujocoEnv
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+from rlkit.envs.wrappers import ImageMujocoEnv
 import cv2
 import numpy as np
 

@@ -1,4 +1,4 @@
-from railrl.misc.data_processing import Experiment
+from rlkit.misc.data_processing import Experiment
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -25,7 +25,7 @@ def main():
     # Accidentally called this pusher, but it's really ant
     # Here, x-axis is 10k steps.
     # tdm_trials = Experiment(
-    #     "/home/vitchyr/git/railrl/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
+    #     "/home/vitchyr/git/rlkit/data/doodads3/12-27-pusher-reward-scale-tau-uniform-or-truncated-geo-sweep-2/",
     #     criteria={
     #         'ddpg_tdm_kwargs.base_kwargs.reward_scale': 100,
     #         'ddpg_tdm_kwargs.tdm_kwargs.tau_sample_strategy':

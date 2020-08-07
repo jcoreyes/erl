@@ -1,22 +1,22 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.data_management.obs_dict_replay_buffer import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector import (
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector import (
     MdpPathCollector,
     GoalConditionedPathCollector,
 )
-from railrl.samplers.data_collector.step_collector import (
+from rlkit.samplers.data_collector.step_collector import (
     MdpStepCollector,
     GoalConditionedStepCollector,
 )
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )

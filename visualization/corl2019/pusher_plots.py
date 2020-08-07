@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from railrl.visualization import plot_util as plot
+from rlkit.visualization import plot_util as plot
 
 ########## PUSHER PLOT
 

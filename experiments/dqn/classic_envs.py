@@ -5,15 +5,15 @@ Run DQN on grid world.
 import gym
 import numpy as np
 
-from railrl.torch.dqn.double_dqn import DoubleDQN
+from rlkit.torch.dqn.double_dqn import DoubleDQN
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.dqn.dqn import DQN
+from rlkit.torch.networks import Mlp
 from torch import nn as nn
-from railrl.torch.modules import HuberLoss
+from rlkit.torch.modules import HuberLoss
 
 
 def experiment(variant):

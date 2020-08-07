@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from railrl.testing.np_test_case import NPTestCase
-from railrl.torch import pytorch_util as ptu
-from railrl.torch import modules
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch import modules
 
 
 class TestHuberLoss(NPTestCase):

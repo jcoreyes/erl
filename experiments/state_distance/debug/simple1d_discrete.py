@@ -2,20 +2,20 @@ import random
 
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.simple1d import Simple1D, Simple1DTdmDiscretePlotter
-from railrl.exploration_strategies.base import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.simple1d import Simple1D, Simple1DTdmDiscretePlotter
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
-from railrl.state_distance.old.discrete_action_networks import \
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.dqn.policy import ArgmaxDiscretePolicy
+from rlkit.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
-from railrl.state_distance.tdm_ddpg import TdmDdpg
-from railrl.torch.modules import HuberLoss
-from railrl.torch.networks import FlattenMlp
+from rlkit.state_distance.tdm_ddpg import TdmDdpg
+from rlkit.torch.modules import HuberLoss
+from rlkit.torch.networks import FlattenMlp
 
 
 def experiment(variant):

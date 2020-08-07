@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual_env_launcher_util import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual_env_launcher_util import (
     goal_conditioned_sac_experiment, process_args
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 
 if __name__ == "__main__":
     variant = dict(

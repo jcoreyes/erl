@@ -2,7 +2,7 @@ import argparse
 import torch
 from torchvision.utils import make_grid
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 import pickle
 import uuid
 import cv2

@@ -1,23 +1,23 @@
 """
 DDPG + memory states.
 """
-from railrl.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
-from railrl.launchers.launcher_util import (
+from rlkit.envs.memory.hidden_cartpole import NormalizedHiddenCartpoleEnv
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.tf.ddpg import DDPG
-    from railrl.envs.flattened_product_box import FlattenedProductBox
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.tf.policies.nn_policy import FeedForwardPolicy
-    from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-    from railrl.envs.memory.continuous_memory_augmented import (
+    from rlkit.tf.ddpg import DDPG
+    from rlkit.envs.flattened_product_box import FlattenedProductBox
+    from rlkit.exploration_strategies.ou_strategy import OUStrategy
+    from rlkit.tf.policies.nn_policy import FeedForwardPolicy
+    from rlkit.qfunctions.nn_qfunction import FeedForwardCritic
+    from rlkit.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.launchers.launcher_util import (
+    from rlkit.launchers.launcher_util import (
         set_seed,
     )
 

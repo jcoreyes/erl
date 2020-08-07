@@ -1,6 +1,6 @@
-from railrl.launchers.arglauncher import run_variants
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.sets.example_set_gen import gen_example_sets_full_experiment
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.sets.example_set_gen import gen_example_sets_full_experiment
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 
 variant = dict(

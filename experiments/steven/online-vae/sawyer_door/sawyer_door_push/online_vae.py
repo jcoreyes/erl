@@ -1,11 +1,11 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorPushOpenActionLimitedEnv
 
-from railrl.images.camera import sawyer_door_env_camera_closer
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.dataset.sawyer_door_push_open_data import generate_vae_dataset
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+from rlkit.images.camera import sawyer_door_env_camera_closer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.dataset.sawyer_door_push_open_data import generate_vae_dataset
+from rlkit.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
 #    n_seeds = 1

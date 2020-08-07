@@ -2,14 +2,14 @@
 AWR + SAC from demo experiment
 """
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
 def local_exp(variant):
-    from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-    from railrl.launchers.experiments.awac.awac_rl import experiment
+    from rlkit.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+    from rlkit.launchers.experiments.awac.awac_rl import experiment
 
-    from railrl.torch.sac.policies import GaussianPolicy
+    from rlkit.torch.sac.policies import GaussianPolicy
 
     variant = dict(
         num_epochs=1001,

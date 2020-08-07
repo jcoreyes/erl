@@ -24,9 +24,9 @@ def configure_matplotlib(matplotlib):
     matplotlib.rcParams.update({'font.size': 18})
 plt.style.use("ggplot")
 
-output_dir = '/home/ashvin/data/s3doodad/share/multiobj/plots' # '/home/vitchyr/git/railrl/data/papers/nips2018/script-output-2/'
+output_dir = '/home/ashvin/data/s3doodad/share/multiobj/plots' # '/home/vitchyr/git/rlkit/data/papers/nips2018/script-output-2/'
 ashvin_base_dir = "/home/ashvin/data/" # '/mnt/gauss1/ashvin-all-data/'
-vitchyr_base_dir = "/home/ashvin/data/" # '/home/vitchyr/git/railrl/data/'
+vitchyr_base_dir = "/home/ashvin/data/" # '/home/vitchyr/git/rlkit/data/'
 
 our_method_name = 'RIG'
 

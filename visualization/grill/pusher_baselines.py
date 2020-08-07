@@ -7,7 +7,7 @@ from visualization.grill.config import (
     configure_matplotlib,
 )
 import matplotlib.pyplot as plt
-from railrl.visualization import plot_util as plot
+from rlkit.visualization import plot_util as plot
 
 configure_matplotlib(matplotlib)
 
@@ -62,7 +62,7 @@ dsae = plot.load_exps(
 )
 plot.tag_exps(dsae, "name", "dsae")
 
-#lr = plot.load_exps(["/home/vitchyr/git/railrl/data/papers/nips2018/autoencoder_result/05-26-sawyer-single-push-autoencoder-ablation-final/"], suppress_output=True)
+#lr = plot.load_exps(["/home/vitchyr/git/rlkit/data/papers/nips2018/autoencoder_result/05-26-sawyer-single-push-autoencoder-ablation-final/"], suppress_output=True)
 
 
 lr = plot.load_exps(

@@ -1,19 +1,19 @@
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.pygame.point2d import Point2DEnv
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import MergedCNN, ConcatMlp
-from railrl.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
-from railrl.torch.sac.policies import TanhCNNGaussianPolicy
-from railrl.torch.sac.twin_sac import TwinSACTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.torch.networks import MergedCNN, ConcatMlp
+from rlkit.torch.sac.policies import MakeDeterministic, TanhGaussianPolicy
+from rlkit.torch.sac.policies import TanhCNNGaussianPolicy
+from rlkit.torch.sac.twin_sac import TwinSACTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):

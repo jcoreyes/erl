@@ -5,7 +5,7 @@ from visualization.grill.config import (
     configure_matplotlib,
 )
 import matplotlib.pyplot as plt
-from railrl.visualization import plot_util as plot
+from rlkit.visualization import plot_util as plot
 
 configure_matplotlib(matplotlib)
 

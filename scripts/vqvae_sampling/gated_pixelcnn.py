@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch import pytorch_util as ptu
 from os import path as osp
 from sklearn import neighbors
 import numpy as np

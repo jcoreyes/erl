@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v3, sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import SawyerPushAndReachXYEnv
-from railrl.launchers.experiments.murtaza.multiworld_tdm import tdm_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.murtaza.multiworld_tdm import tdm_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

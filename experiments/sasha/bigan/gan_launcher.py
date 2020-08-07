@@ -1,26 +1,26 @@
 import numpy as np
 from torch.utils import data
-from railrl.torch.grill.common import *
+from rlkit.torch.grill.common import *
 
 def train_gan(variant, return_data = False):
-    from railrl.torch.gan.dcgan import Generator, Discriminator
-    from railrl.torch.gan.dcgan_trainer import DCGANTrainer
+    from rlkit.torch.gan.dcgan import Generator, Discriminator
+    from rlkit.torch.gan.dcgan_trainer import DCGANTrainer
 
-    from railrl.torch.gan.bigan import Generator, Encoder, Discriminator
-    from railrl.torch.gan.bigan_trainer import BiGANTrainer
+    from rlkit.torch.gan.bigan import Generator, Encoder, Discriminator
+    from rlkit.torch.gan.bigan_trainer import BiGANTrainer
 
-    from railrl.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
-    from railrl.pythonplusplus import identity
+    from rlkit.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
+    from rlkit.pythonplusplus import identity
     import torch
     import torch.utils.data
     import torchvision.datasets as dset
-    from railrl.data_management.external.bair_dataset import bair_dataset
+    from rlkit.data_management.external.bair_dataset import bair_dataset
     import torchvision.transforms as transforms
-    from railrl.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
+    from rlkit.data_management.external.bair_dataset.config import BAIR_DATASET_LOCATION
 
-    from railrl.misc.asset_loader import sync_down_folder
+    from rlkit.misc.asset_loader import sync_down_folder
 
     if not variant.get('simpusher', False):
         if variant["dataset"] == "bair":

@@ -14,9 +14,9 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from railrl.misc.data_processing import get_trials, \
+from rlkit.misc.data_processing import get_trials, \
     get_unique_param_to_values
-from railrl.pythonplusplus import is_numeric
+from rlkit.pythonplusplus import is_numeric
 
 
 def sort_by_first(*lists):

@@ -2,7 +2,7 @@ import argparse
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 from itertools import chain
 
 

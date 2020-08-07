@@ -1,23 +1,23 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_reset_full_goal import SawyerPushAndReachXYEnv
-from railrl.data_management.obs_dict_replay_buffer import \
+from rlkit.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.exploration_strategies.count_based.count_based_goal_sampling_env import CountBasedGoalSamplingEnv
-from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.exploration_strategies.count_based.count_based_goal_sampling_env import CountBasedGoalSamplingEnv
+from rlkit.images.camera import sawyer_init_camera_zoomed_in_fixed
+from rlkit.launchers.launcher_util import run_experiment
 
-import railrl.torch.pytorch_util as ptu
-from railrl.exploration_strategies.base import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.torch.grill.launcher import get_video_save_func
-from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.samplers.rollout_functions as rf
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.torch.grill.launcher import get_video_save_func
+from rlkit.torch.her.her_td3 import HerTd3
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.samplers.rollout_functions as rf
 
 def her_td3_experiment(variant):
     env = variant['env_class'](**variant['env_kwargs'])

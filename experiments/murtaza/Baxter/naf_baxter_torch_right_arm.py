@@ -1,11 +1,11 @@
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.naf import NAF, NafPolicy
-from railrl.torch import pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.naf import NAF, NafPolicy
+from rlkit.torch import pytorch_util as ptu
 from os.path import exists
 import joblib
-from railrl.envs.ros.baxter_env import BaxterEnv
-from railrl.torch import pytorch_util as ptu
+from rlkit.envs.ros.baxter_env import BaxterEnv
+from rlkit.torch import pytorch_util as ptu
 
 
 def example(variant):

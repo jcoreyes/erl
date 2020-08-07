@@ -6,17 +6,17 @@ from multiworld.core.image_env import ImageEnv
 from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
 # from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
-# import railrl.util.hyperparameter as hyp
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
+# import rlkit.util.hyperparameter as hyp
+from rlkit.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 
 import torch
 
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
-# from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+# from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -318,10 +318,10 @@ if __name__ == "__main__":
                 env = EncoderWrappedEnv(env, model, reward_params, config_params)
                 print("Finished creating env")
                 demo_paths=["/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_left_%i.mp4" % i for i in range(10)]
-                # demo_paths+=["/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_left_%i.pkl" % i for i in range(10)]
+                # demo_paths+=["/home/anair/ros_ws/src/rlkit-private/demos/rlbench/demo_left_%i.pkl" % i for i in range(10)]
 
-            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet2.pkl" # use this for imagenet
-            # processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/door_demos_v3/processed_demos_imagenet_jitter2.pkl"
+            # processed_demo_path = "/home/anair/ros_ws/src/rlkit-private/demos/door_demos_v3/processed_demos_imagenet2.pkl" # use this for imagenet
+            # processed_demo_path = "/home/anair/ros_ws/src/rlkit-private/demos/door_demos_v3/processed_demos_imagenet_jitter2.pkl"
                 if use_imagenet:
                     processed_demo_path = "/home/anair/ros_ws/src/railrl-private/demos/rlbench/demo_right_%s_imagenet_jitter2.pkl" % color
                 else:

@@ -1,23 +1,23 @@
 import gym
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
-from railrl.samplers.data_collector.step_collector import ObsDictStepCollector
-from railrl.torch.networks import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector.path_collector import ObsDictPathCollector
+from rlkit.samplers.data_collector.step_collector import ObsDictStepCollector
+from rlkit.torch.networks import (
     ConcatMlp, MergedCNN, PretrainedCNN, Flatten,
     MlpQfWithObsProcessor,
 )
-from railrl.torch.sac.policies import (
+from rlkit.torch.sac.policies import (
     MakeDeterministic, TanhGaussianPolicy,
     TanhCNNGaussianPolicy,
     TanhGaussianPolicyAdapter,
 )
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )

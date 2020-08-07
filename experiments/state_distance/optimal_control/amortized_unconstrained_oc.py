@@ -8,17 +8,17 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-from railrl.tf.state_distance.state_distance_q_learning import \
+from rlkit.tf.state_distance.state_distance_q_learning import \
     multitask_rollout
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_7dof import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.reacher_7dof import (
     DESIRED_JOINT_CONFIG,
     reach_parameterized_joint_config)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.old.amortized_oc import \
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.old.amortized_oc import \
     train_amortized_goal_chooser, AmortizedPolicy, UniversalGoalChooser
-from railrl.core import logger
+from rlkit.core import logger
 
 
 def experiment(variant):

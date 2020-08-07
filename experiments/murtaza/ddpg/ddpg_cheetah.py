@@ -6,11 +6,11 @@ from os.path import exists
 import joblib
 import tensorflow as tf
 
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.qfunctions.nn_qfunction import FeedForwardCritic
-from railrl.tf.ddpg import DDPG
-from railrl.tf.policies.nn_policy import FeedForwardPolicy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.qfunctions.nn_qfunction import FeedForwardCritic
+from rlkit.tf.ddpg import DDPG
+from rlkit.tf.policies.nn_policy import FeedForwardPolicy
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 
 

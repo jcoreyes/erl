@@ -2,13 +2,13 @@
 # import numpy as np
 # import mnist_data
 # import os
-from railrl.torch.vae.vae import VAE
+from rlkit.torch.vae.vae import VAE
 # import plot_utils
 # import glob
 # import ss.path
 
 # import argparse
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 def experiment(variant):
     m = VAE()

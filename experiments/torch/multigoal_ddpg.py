@@ -1,16 +1,16 @@
 import random
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multigoal import MultiGoalEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multigoal import MultiGoalEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.visualization.plotter import QFPolicyPlotter
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.ddpg.ddpg import DDPG
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.visualization.plotter import QFPolicyPlotter
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.ddpg.ddpg import DDPG
 
 
 def experiment(variant):

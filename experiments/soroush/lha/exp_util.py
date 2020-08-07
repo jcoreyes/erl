@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 import collections
-from railrl.launchers.launcher_util import run_experiment as exp_launcher_function
+from rlkit.launchers.launcher_util import run_experiment as exp_launcher_function
 
 def parse_args():
     parser = argparse.ArgumentParser()

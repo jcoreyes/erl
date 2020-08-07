@@ -1,9 +1,9 @@
-from railrl.launchers.experiments.ashvin.multiworld import her_td3_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.ashvin.multiworld import her_td3_experiment
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 
 import numpy as np

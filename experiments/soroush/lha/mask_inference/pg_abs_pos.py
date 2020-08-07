@@ -1,4 +1,4 @@
-from railrl.launchers.sets.mask_inference import (
+from rlkit.launchers.sets.mask_inference import (
     infer_masks,
     print_matrix,
     plot_Gaussian,

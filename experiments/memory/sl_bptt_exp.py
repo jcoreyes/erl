@@ -3,13 +3,13 @@ Supervised learning BPTT on OCM.
 """
 from itertools import product
 
-from railrl.envs.memory.high_low import HighLow
-from railrl.launchers.launcher_util import (
+from rlkit.envs.memory.high_low import HighLow
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.launchers.rnn_launchers import bptt_launcher
-from railrl.tf.policies.memory.lstm_memory_policy import (
+from rlkit.launchers.rnn_launchers import bptt_launcher
+from rlkit.tf.policies.memory.lstm_memory_policy import (
     SeparateRWALinearCell,
 )
 

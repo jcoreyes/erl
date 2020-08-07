@@ -6,38 +6,38 @@ from hyperopt import hp
 from torch import nn as nn
 from torch.nn import functional as F
 
-from railrl.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
+from rlkit.envs.multitask.pusher2d import HandCylinderXYPusher2DEnv
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.algos.state_distance.state_distance_q_learning import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.algos.state_distance.state_distance_q_learning import (
     HorizonFedStateDistanceQLearning)
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import (
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoalState,
 )
-from railrl.envs.multitask.reacher_env import (
+from rlkit.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
-from railrl.envs.multitask.pusher import (
+from rlkit.envs.multitask.pusher import (
     JointOnlyPusherEnv,
 )
-from railrl.envs.wrappers import convert_gym_space, NormalizedBoxEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import (
+from rlkit.envs.wrappers import convert_gym_space, NormalizedBoxEnv
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.networks.state_distance import (
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.hypopt import optimize_and_save
+from rlkit.misc.ml_util import ConstantSchedule
+from rlkit.networks.state_distance import (
     FFUniversalPolicy,
     GoalStructuredUniversalQfunction,
 )
-from railrl.state_distance.policies import TerminalRewardSampleOCPolicy
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.torch.state_distance.exploration import \
+from rlkit.state_distance.policies import TerminalRewardSampleOCPolicy
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.torch.state_distance.exploration import \
     UniversalPolicyWrappedWithExplorationStrategy
 
 

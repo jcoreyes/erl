@@ -2,7 +2,7 @@ import os.path as osp
 #import cv2
 import numpy as np
 from multiworld.core.image_env import unormalize_image, ImageEnv
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.misc.asset_loader import load_local_or_remote_file
 
 def generate_uniform_dataset_reacher(
         env_class=None,

@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
     init_sawyer_camera_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
     SawyerPickAndPlaceEnv
-from railrl.envs.mujoco.sawyer_push_and_reach_env import (
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
-from railrl.images.camera import (
+from rlkit.images.camera import (
     sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_in,
 )
@@ -16,9 +16,9 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import (
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import train_vae
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import train_vae
+from rlkit.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
     env_class = SawyerPickAndPlaceEnv

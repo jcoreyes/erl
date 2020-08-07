@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2, \
     sawyer_pusher_camera_upright_v1
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
     variant = dict(

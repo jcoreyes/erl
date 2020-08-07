@@ -1,8 +1,8 @@
-from railrl.envs.mujoco.sawyer_push_env import SawyerPushXYEasyEnv
-from railrl.images.camera import sawyer_init_camera_zoomed_in
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.relabeled_vae_experiment import experiment
+from rlkit.envs.mujoco.sawyer_push_env import SawyerPushXYEasyEnv
+from rlkit.images.camera import sawyer_init_camera_zoomed_in
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 5

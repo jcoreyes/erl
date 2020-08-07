@@ -10,19 +10,19 @@ logs/
 *.mypy_cache/
 tmp*.py
 *.idea
-railrl/bin/
-railrl/.idea/
+rlkit/bin/
+rlkit/.idea/
 examples/#ddpg_cheetah.here.py#
 examples/tmp.yml
 *.npy
 *.ipynb
 *.prof
 
-railrl/launchers/config.py
+rlkit/launchers/config.py
 visualization/grill/config.py
 visualization/grill/config_personal.py
-railrl/demos/spacemouse/config.py
-railrl/data_management/external/bair_dataset/config.py
+rlkit/demos/spacemouse/config.py
+rlkit/data_management/external/bair_dataset/config.py
 
 experiments/murtaza/colinestuff/mesh/
 experiments/murtaza/colinestuff/textures/

@@ -1,16 +1,16 @@
 import argparse
-from railrl.envs.robosuite_wrapper import RobosuiteStateWrapperEnv
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-import railrl.torch.pytorch_util as ptu
+from rlkit.envs.robosuite_wrapper import RobosuiteStateWrapperEnv
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+import rlkit.torch.pytorch_util as ptu
 
 def experiment(variant):
     env = RobosuiteStateWrapperEnv(wrapped_env_id=variant['env_id'], **variant['env_kwargs']) #

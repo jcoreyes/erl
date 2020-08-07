@@ -1,8 +1,8 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.images.camera import sawyer_init_camera
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.relabeled_vae_experiment import experiment
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.images.camera import sawyer_init_camera
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 5
@@ -10,9 +10,9 @@ if __name__ == "__main__":
     exp_prefix = 'sawyer_reacher_autoencoder_ablation_final'
 
     vae_paths = {
-         # "16": "/home/murtaza/Documents/rllab/railrl/data/local/05-15-sawyer-reacher-ae/05-15-sawyer_reacher_ae_2018_05_15_15_07_14_0000--s-92932/params.pkl"
+         # "16": "/home/murtaza/Documents/rllab/rlkit/data/local/05-15-sawyer-reacher-ae/05-15-sawyer_reacher_ae_2018_05_15_15_07_14_0000--s-92932/params.pkl"
         "4": "/home/murtaza/Documents/rllab/railrl/experiments/murtaza/vae/reacher.pkl"
-        # "4": "/home/murtaza/Documents/rllab/railrl/data/local/05-25-sawyer-pos-reacher-ae-smaller-latents/05-25-sawyer_pos_reacher_ae_smaller_latents_2018_05_25_11_04_33_0000--s-3459/itr_90.pkl"
+        # "4": "/home/murtaza/Documents/rllab/rlkit/data/local/05-25-sawyer-pos-reacher-ae-smaller-latents/05-25-sawyer_pos_reacher_ae_smaller_latents_2018_05_25_11_04_33_0000--s-3459/itr_90.pkl"
     }
 
     variant = dict(

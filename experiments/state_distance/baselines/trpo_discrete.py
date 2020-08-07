@@ -1,10 +1,10 @@
 import random
 
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import ConvertEnvToRllab
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.wrappers import ConvertEnvToRllab
+from rlkit.launchers.launcher_util import run_experiment
 from rllab.algos.trpo import TRPO
 from rllab.baselines.linear_feature_baseline import LinearFeatureBaseline
 from rllab.policies.categorical_mlp_policy import CategoricalMLPPolicy

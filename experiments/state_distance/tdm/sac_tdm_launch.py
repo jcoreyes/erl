@@ -1,23 +1,23 @@
 from torch.nn.functional import tanh
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
-from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
-from railrl.envs.multitask.reacher_7dof import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.point2d_uwall import MultitaskPoint2dUWall
+from rlkit.envs.multitask.point2d_wall import MultitaskPoint2dWall
+from rlkit.envs.multitask.reacher_7dof import (
     Reacher7DofXyzGoalState,
     Reacher7DofFullGoal)
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_networks import (
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.tdm_networks import (
     TdmNormalizer,
     TdmQf,
     StochasticTdmPolicy,
     TdmVf,
 )
-from railrl.state_distance.tdm_sac import TdmSac
+from rlkit.state_distance.tdm_sac import TdmSac
 
 
 def experiment(variant):

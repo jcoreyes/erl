@@ -1,7 +1,7 @@
 import os
 import sys
 
-from railrl.launchers import config
+from rlkit.launchers import config
 
 file_path = sys.argv[1]
 s3_path = config.AWS_S3_PATH

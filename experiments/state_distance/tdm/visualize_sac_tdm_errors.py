@@ -81,7 +81,7 @@ if __name__ == "__main__":
         'file',
         type=str,
         # 2d point-mass
-        # default='/home/vitchyr/git/railrl/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
+        # default='/home/vitchyr/git/rlkit/data/local/02-01-dev-sac-tdm-launch/02-01-dev-sac-tdm-launch_2018_02_01_16_40_53_0000--s-2210/params.pkl',
         help='path to the snapshot file',
     )
     parser.add_argument('--H', type=int, default=30, help='Horizon for eval')

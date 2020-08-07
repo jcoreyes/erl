@@ -6,10 +6,10 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.core import logger
-from railrl.torch.core import PyTorchModule
-from railrl.torch.mpc.collocation.collocation_mpc_controller import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.core import logger
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.mpc.collocation.collocation_mpc_controller import (
     SlsqpCMC,
     GradientCMC,
     StateGCMC,

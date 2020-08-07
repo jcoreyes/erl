@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import os.path as osp
-from railrl.misc.asset_loader import local_path_from_s3_or_local_path
+from rlkit.misc.asset_loader import local_path_from_s3_or_local_path
 
 def generate_vae_dataset(
         env_class,

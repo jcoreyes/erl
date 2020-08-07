@@ -1,9 +1,9 @@
 import os.path as osp
 import multiworld.envs.mujoco as mwmj
 import torch.nn.functional as F
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.disentanglement.state_launcher import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.disentanglement.state_launcher import \
     disentangled_her_twin_sac_experiment_v2
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 

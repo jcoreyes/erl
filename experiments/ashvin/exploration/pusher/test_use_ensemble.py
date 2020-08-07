@@ -1,15 +1,15 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
-from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
+from rlkit.data_management.her_replay_buffer import RelabelingReplayBuffer
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_reset_env import SawyerPushAndReachXYZEnv
 
-from railrl.launchers.experiments.ashvin.multiworld_exploration import her_td3_experiment
+from rlkit.launchers.experiments.ashvin.multiworld_exploration import her_td3_experiment
 
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 
 import numpy as np
 

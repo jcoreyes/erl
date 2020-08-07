@@ -1,4 +1,4 @@
-from railrl.demos.collect_demo import collect_demos, SpaceMouseExpert
+from rlkit.demos.collect_demo import collect_demos, SpaceMouseExpert
 from multiworld.core.image_env import ImageEnv
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 

@@ -1,15 +1,15 @@
 from sklearn.model_selection import train_test_split
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
 import numpy as np
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     #this has both states and images so can't use generate vae dataset

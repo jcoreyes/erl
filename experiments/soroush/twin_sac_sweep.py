@@ -9,13 +9,13 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-from railrl.misc.variant_generator import VariantGenerator
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import TwinSAC
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.misc.variant_generator import VariantGenerator
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import TwinSAC
 
 COMMON_PARAMS = dict(
     num_epochs=3000,

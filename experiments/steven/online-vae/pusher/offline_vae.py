@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, init_sawyer_camera_v3 
-from railrl.images.camera import sawyer_init_camera_zoomed_in
-from railrl.envs.mujoco.sawyer_push_and_reach_env import (
+from rlkit.images.camera import sawyer_init_camera_zoomed_in
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
-from railrl.images.camera import (
+from rlkit.images.camera import (
     sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_in,
 )
@@ -14,9 +14,9 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_full_experiment
+from rlkit.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         # 'grill_variant.observation_key': ['state_observation'],
         # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
         # 'grill_variant.vae_paths': [
-        #     {"16": "/home/vitchyr/git/railrl/data/doodads3/06-12-dev/06-12"
+        #     {"16": "/home/vitchyr/git/rlkit/data/doodads3/06-12-dev/06-12"
         #            "-dev_2018_06_12_18_57_14_0000--s-28051/vae.pkl",
         #      }
         # ],

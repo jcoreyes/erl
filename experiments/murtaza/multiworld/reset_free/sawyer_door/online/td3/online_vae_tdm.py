@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.vae.dataset.generate_goal_dataset import generate_goal_dataset_using_policy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(

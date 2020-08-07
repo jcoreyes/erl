@@ -1,4 +1,4 @@
-from railrl.launchers.sets.mask_inference import plot_Gaussian
+from rlkit.launchers.sets.mask_inference import plot_Gaussian
 import numpy as np
 import matplotlib.pyplot as plt
 

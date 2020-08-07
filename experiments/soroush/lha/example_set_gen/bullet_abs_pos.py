@@ -1,5 +1,5 @@
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.sets.example_set_gen import gen_example_sets_full_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.sets.example_set_gen import gen_example_sets_full_experiment
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC
 
 variant = dict(

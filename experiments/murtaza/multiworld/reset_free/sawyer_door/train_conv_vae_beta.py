@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAEDouble
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.grill.launcher import generate_vae_dataset
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.torch.vae.conv_vae import ConvVAEDouble
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.grill.launcher import generate_vae_dataset
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = variant['generate_vae_dataset_fn'](

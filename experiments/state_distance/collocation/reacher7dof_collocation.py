@@ -5,16 +5,16 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-from railrl.samplers.util import rollout
-from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch.core import PyTorchModule
-from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
+from rlkit.samplers.util import rollout
+from rlkit.state_distance.util import merge_into_flat_obs
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
     GradientCMC, StateGCMC, LBfgsBCMC, Reacher7DofLBfgsBCMC
-import railrl.torch.pytorch_util as ptu
-from railrl.core import logger
+import rlkit.torch.pytorch_util as ptu
+from rlkit.core import logger
 
 # Reacher7DofFullGoal - TDM
-from railrl.torch.mpc.collocation.model_to_implicit_model import \
+from rlkit.torch.mpc.collocation.model_to_implicit_model import \
     ModelToImplicitModel
 
 PATH = '/home/vitchyr/git/railrl/data/doodads3/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus/02-07-reacher7dof-sac-mtau-1-or-10-terminal-bonus-id4-s9821/params.pkl'

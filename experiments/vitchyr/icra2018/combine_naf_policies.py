@@ -1,9 +1,9 @@
 import joblib
 
-from railrl.launchers.launcher_util import run_experiment
-from railrl.policies.composition import AveragerPolicy, CombinedNafPolicy
-from railrl.samplers.util import rollout
-from railrl.core import logger
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.policies.composition import AveragerPolicy, CombinedNafPolicy
+from rlkit.samplers.util import rollout
+from rlkit.core import logger
 
 column_to_path = dict(
     left=(

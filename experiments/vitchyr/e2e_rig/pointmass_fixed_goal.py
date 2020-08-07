@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.e2e_rig.launcher import pointmass_fixed_goal_experiment
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.e2e_rig.launcher import pointmass_fixed_goal_experiment
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
 if __name__ == "__main__":
     variant = dict(

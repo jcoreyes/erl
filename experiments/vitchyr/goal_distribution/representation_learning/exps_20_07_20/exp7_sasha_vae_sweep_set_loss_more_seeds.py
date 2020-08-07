@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sets.vae_launcher import train_set_vae
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sets.vae_launcher import train_set_vae
 
 from multiworld.envs.pygame import PickAndPlaceEnv
 

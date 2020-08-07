@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.masking_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.masking_launcher import (
     masking_sac_experiment
 )
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 from experiments.steven.masking.reward_fns import (
      PickAndPlace1DEnvObjectOnlyRewardFn
 )

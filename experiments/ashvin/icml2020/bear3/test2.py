@@ -4,21 +4,21 @@ import gym
 import numpy as np
 import torch.nn as nn
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector import MdpPathCollector # , CustomMdpPathCollector
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.torch.networks import MlpQf, TanhMlpPolicy
-from railrl.torch.sac.policies import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.demos.source.mdp_path_loader import MDPPathLoader
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector import MdpPathCollector # , CustomMdpPathCollector
+from rlkit.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from rlkit.torch.networks import MlpQf, TanhMlpPolicy
+from rlkit.torch.sac.policies import (
     TanhGaussianPolicy, VAEPolicy
 )
-from railrl.torch.sac.bear import BEARTrainer
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.torch.sac.bear import BEARTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 import gym
 

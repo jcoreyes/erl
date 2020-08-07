@@ -1,23 +1,23 @@
 import gym
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector.path_collector import ObsDictPathCollector
-from railrl.samplers.data_collector.step_collector import ObsDictStepCollector
-from railrl.torch.networks import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictReplayBuffer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector.path_collector import ObsDictPathCollector
+from rlkit.samplers.data_collector.step_collector import ObsDictStepCollector
+from rlkit.torch.networks import (
     ConcatMlp, MergedCNN, PretrainedCNN, Flatten,
     MlpQfWithObsProcessor,
 )
-from railrl.torch.sac.policies import (
+from rlkit.torch.sac.policies import (
     MakeDeterministic, TanhGaussianPolicy,
     TanhCNNGaussianPolicy,
     TanhGaussianPolicyAdapter,
 )
-from railrl.torch.sac.sac import SACTrainer
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
@@ -27,19 +27,19 @@ from multiworld.envs.mujoco.cameras import sawyer_xyz_reacher_camera_v0
 
 
 def experiment(variant):
-    import railrl.samplers.rollout_functions as rf
-    import railrl.torch.pytorch_util as ptu
-    from railrl.data_management.obs_dict_replay_buffer import \
+    import rlkit.samplers.rollout_functions as rf
+    import rlkit.torch.pytorch_util as ptu
+    from rlkit.data_management.obs_dict_replay_buffer import \
         ObsDictRelabelingBuffer
-    from railrl.exploration_strategies.base import (
+    from rlkit.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
     )
-    from railrl.torch.her.her import HERTrainer
-    from railrl.torch.td3.td3 import TD3 as TD3Trainer
-    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-    from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-    from railrl.samplers.data_collector import GoalConditionedPathCollector
-    from railrl.torch.grill.launcher import (
+    from rlkit.torch.her.her import HERTrainer
+    from rlkit.torch.td3.td3 import TD3 as TD3Trainer
+    from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+    from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+    from rlkit.samplers.data_collector import GoalConditionedPathCollector
+    from rlkit.torch.grill.launcher import (
         grill_preprocess_variant, get_envs, get_exploration_strategy,
         full_experiment_variant_preprocess,
         train_vae_and_update_variant,

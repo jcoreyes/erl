@@ -2,8 +2,8 @@ import unittest
 
 import numpy as np
 
-from railrl.envs.memory.one_char_memory import OneCharMemory
-from railrl.testing.np_test_case import NPTestCase
+from rlkit.envs.memory.one_char_memory import OneCharMemory
+from rlkit.testing.np_test_case import NPTestCase
 
 
 class TestOneCharMemory(NPTestCase):

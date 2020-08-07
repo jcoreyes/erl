@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame.point2d import Point2DWallEnv
-from railrl.data_management.obs_dict_replay_buffer import \
+from rlkit.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

@@ -1,12 +1,12 @@
 """
 Use EC2 to run DDPG on Cartpole.
 """
-from railrl.launchers.algo_launchers import (
+from rlkit.launchers.algo_launchers import (
     my_ddpg_launcher,
     random_action_launcher,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc import hyperparameter as hp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc import hyperparameter as hp
 
 
 def main():

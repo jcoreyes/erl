@@ -1,4 +1,4 @@
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch import pytorch_util as ptu
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

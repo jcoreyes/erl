@@ -3,14 +3,14 @@ If you are trying to run this code, ask Ashvin for the demonstration file:
 demos/pointmass_demos_100.npy (which should go in your S3 storage)
 """
 
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 
 from multiworld.envs.pygame.point2d import Point2DWallEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multienv import SawyerPushAndReachXYEasyEnv
 
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 
 import numpy as np
 
@@ -18,18 +18,18 @@ def her_td3_experiment(variant):
     import gym
     import multiworld.envs.mujoco
     import multiworld.envs.pygame
-    import railrl.samplers.rollout_functions as rf
-    import railrl.torch.pytorch_util as ptu
-    from railrl.exploration_strategies.base import (
+    import rlkit.samplers.rollout_functions as rf
+    import rlkit.torch.pytorch_util as ptu
+    from rlkit.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
     )
-    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.torch.grill.launcher import get_video_save_func
-    from railrl.demos.her_bc import HerBC
-    from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-    from railrl.data_management.obs_dict_replay_buffer import (
+    from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+    from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from rlkit.exploration_strategies.ou_strategy import OUStrategy
+    from rlkit.torch.grill.launcher import get_video_save_func
+    from rlkit.demos.her_bc import HerBC
+    from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+    from rlkit.data_management.obs_dict_replay_buffer import (
         ObsDictRelabelingBuffer
     )
 

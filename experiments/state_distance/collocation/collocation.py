@@ -1,12 +1,12 @@
 import argparse
 import joblib
 
-from railrl.samplers.util import rollout
-from railrl.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
+from rlkit.samplers.util import rollout
+from rlkit.torch.mpc.collocation.collocation_mpc_controller import SlsqpCMC, \
     GradientCMC, StateGCMC, LBfgsBCMC
-from railrl.torch.mpc.collocation.model_to_implicit_model import \
+from rlkit.torch.mpc.collocation.model_to_implicit_model import \
     ModelToImplicitModel
-from railrl.core import logger
+from rlkit.core import logger
 
 # 2D point mass
 PATH = '/home/vitchyr/git/railrl/data/local/01-30-dev-mpc-neural-networks/01-30-dev-mpc-neural-networks_2018_01_30_11_28_28_0000--s-24549/params.pkl'

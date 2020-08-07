@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import full_experiment_variant_preprocess, grill_her_td3_full_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import full_experiment_variant_preprocess, grill_her_td3_full_experiment
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj import SawyerMultiobjectEnv
 
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.misc.asset_loader import load_local_or_remote_file
 
 import random
 import numpy as np
@@ -74,7 +74,7 @@ def generate_vae_dataset_from_demos(variant):
     return train_data, test_data, info
 
 def train_vae_and_update_variant(variant):
-    from railrl.core import logger
+    from rlkit.core import logger
     grill_variant = variant['grill_variant']
     train_vae_variant = variant['train_vae_variant']
     if grill_variant.get('vae_path', None) is None:
@@ -109,17 +109,17 @@ def train_vae_and_update_variant(variant):
 
 
 def train_vae(variant, return_data=False):
-    from railrl.misc.ml_util import PiecewiseLinearSchedule
-    from railrl.torch.vae.conv_vae import (
+    from rlkit.misc.ml_util import PiecewiseLinearSchedule
+    from rlkit.torch.vae.conv_vae import (
         ConvVAE,
         SpatialAutoEncoder,
         AutoEncoder,
     )
-    import railrl.torch.vae.conv_vae as conv_vae
-    from railrl.torch.vae.vae_trainer import ConvVAETrainer
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
-    from railrl.pythonplusplus import identity
+    import rlkit.torch.vae.conv_vae as conv_vae
+    from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
+    from rlkit.pythonplusplus import identity
     import torch
     beta = variant["beta"]
     representation_size = variant["representation_size"]

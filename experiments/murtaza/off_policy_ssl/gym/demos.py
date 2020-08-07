@@ -1,5 +1,5 @@
-from railrl.demos.collect_demo import collect_demos_fixed
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.demos.collect_demo import collect_demos_fixed
+from rlkit.misc.asset_loader import load_local_or_remote_file
 import gym
 
 if __name__ == '__main__':

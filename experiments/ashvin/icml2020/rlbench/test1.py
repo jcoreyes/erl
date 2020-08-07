@@ -2,11 +2,11 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.encoder_path_loader import EncoderPathLoader
-from railrl.launchers.experiments.awac.awac_rl import experiment
+from rlkit.demos.source.encoder_path_loader import EncoderPathLoader
+from rlkit.launchers.experiments.awac.awac_rl import experiment
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.envs.rlbench.rlbench_env import RLBenchEnv
 from rlbench.tasks.open_drawer import OpenDrawer

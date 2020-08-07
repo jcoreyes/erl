@@ -1,9 +1,9 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
 
-from railrl.exploration_strategies.base import \
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.policies.simple import ZeroPolicy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.policies.simple import ZeroPolicy
 
 print("making env")
 env = SawyerXYZEnv()

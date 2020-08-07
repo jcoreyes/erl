@@ -1,14 +1,14 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_door_env_flat import SawyerDoorPushOpenEnv, SawyerDoorPullOpenEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.td3.td3 import TD3
-import railrl.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
+from rlkit.data_management.her_replay_buffer import RelabelingReplayBuffer
+from rlkit.envs.mujoco.sawyer_door_env_flat import SawyerDoorPushOpenEnv, SawyerDoorPullOpenEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.td3.td3 import TD3
+import rlkit.torch.pytorch_util as ptu
 
 def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())

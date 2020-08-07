@@ -1,10 +1,10 @@
 import cv2
 from torchvision.utils import save_image
 
-from railrl.envs.vae_wrappers import load_vae
+from rlkit.envs.vae_wrappers import load_vae
 from PIL import Image
 import numpy as np
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch import pytorch_util as ptu
 import matplotlib.pyplot as plt
 # import ipdb; ipdb.set_trace()
 

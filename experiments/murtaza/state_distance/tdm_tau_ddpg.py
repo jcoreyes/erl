@@ -1,24 +1,24 @@
 import random
-import railrl.misc.hyperparameter as hyp
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.half_cheetah import GoalXVelHalfCheetah
-from railrl.envs.multitask.her_half_cheetah import HalfCheetah
-from railrl.envs.multitask.pusher2d import MultitaskPusher2DEnv
-from railrl.envs.multitask.pusher3d import MultitaskPusher3DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.experimental_tdm_networks import StructuredQF, \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt
+from rlkit.envs.multitask.half_cheetah import GoalXVelHalfCheetah
+from rlkit.envs.multitask.her_half_cheetah import HalfCheetah
+from rlkit.envs.multitask.pusher2d import MultitaskPusher2DEnv
+from rlkit.envs.multitask.pusher3d import MultitaskPusher3DEnv
+from rlkit.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.experimental_tdm_networks import StructuredQF, \
     OneHotTauQF, BinaryStringTauQF, TauVectorQF, TauVectorSeparateFirstLayerQF, \
     StandardTdmPolicy, OneHotTauTdmPolicy, BinaryTauTdmPolicy, \
     TauVectorTdmPolicy, TauVectorSeparateFirstLayerTdmPolicy
-from railrl.state_distance.tdm_networks import *
-from railrl.state_distance.tdm_ddpg import TdmDdpg
+from rlkit.state_distance.tdm_networks import *
+from rlkit.state_distance.tdm_ddpg import TdmDdpg
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
 def experiment(variant):
     env = NormalizedBoxEnv(variant['env_class']())

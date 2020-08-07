@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
-from railrl.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_image_env
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
+from rlkit.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_image_env
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import HER_baseline_twin_sac_full_experiment
 
 if __name__ == "__main__":
     variant = dict(

@@ -12,22 +12,22 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.awac_trainer import AWACTrainer
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.samplers.data_collector.step_collector import MdpStepCollector
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.awac_trainer import AWACTrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
 
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF

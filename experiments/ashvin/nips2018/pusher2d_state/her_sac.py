@@ -1,26 +1,26 @@
-import railrl.torch.pytorch_util as ptu
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.her.her_sac import HerSac
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.mujoco.pusher2d import Pusher2DEnv
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.her.her_sac import HerSac
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
+from rlkit.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.launchers.launcher_util import setup_logger, run_experiment
-from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.launchers.launcher_util import setup_logger, run_experiment
+from rlkit.torch.her.her_td3 import HerTd3
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
 
 def experiment(variant):

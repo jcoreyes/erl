@@ -1,8 +1,8 @@
 import unittest
 
 import numpy as np
-from railrl.testing.np_test_case import NPTestCase
-from railrl.torch.popart import popart
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.torch.popart import popart
 
 
 class TestPopArt(NPTestCase):

@@ -2,14 +2,14 @@ import tensorflow as tf
 
 from controllers_solution import MPCcontroller
 from dynamics_solution import NNDynamicsModel
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.samplers.util import rollout
-from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.samplers.util import rollout
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.pytorch_util import set_gpu_mode
 import argparse
 import joblib
 import uuid
-from railrl.core import logger
+from rlkit.core import logger
 
 filename = str(uuid.uuid4())
 

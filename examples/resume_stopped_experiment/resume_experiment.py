@@ -6,7 +6,7 @@ Run
 $ python this_script.py path/to/snapshot/dir
 """
 import argparse
-from railrl.launchers.launcher_util import (
+from rlkit.launchers.launcher_util import (
     continue_experiment_simple,
     resume_torch_algorithm_simple,
 )

@@ -1,6 +1,6 @@
 import unittest
 
-from railrl.data_management.simple_replay_buffer import SimpleReplayBuffer
+from rlkit.data_management.simple_replay_buffer import SimpleReplayBuffer
 
 
 class TestSimpleReplayBuffer(unittest.TestCase):

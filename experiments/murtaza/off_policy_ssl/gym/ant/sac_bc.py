@@ -1,8 +1,8 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.sac.policies import GaussianPolicy, TanhGaussianPolicy
-from railrl.launchers.experiments.awac.awac_rl import experiment
-from railrl.launchers.launcher_util import run_experiment
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.sac.policies import GaussianPolicy, TanhGaussianPolicy
+from rlkit.launchers.experiments.awac.awac_rl import experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
 
 if __name__ == "__main__":
     variant = dict(

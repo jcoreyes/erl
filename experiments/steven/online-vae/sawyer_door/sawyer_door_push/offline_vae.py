@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorPushOpenActionLimitedEnv
-from railrl.images.camera import (
+from rlkit.images.camera import (
     sawyer_door_env_camera_closer)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.dataset.sawyer_door_push_open_data import generate_vae_dataset
-# from railrl.torch.vae.sawyer_door_push_and_reach_data import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_full_experiment
+from rlkit.torch.vae.dataset.sawyer_door_push_open_data import generate_vae_dataset
+# from rlkit.torch.vae.sawyer_door_push_and_reach_data import generate_vae_dataset
 
 if __name__ == "__main__":
     # n_seeds = 1

@@ -6,13 +6,13 @@ from pathlib import Path
 
 import joblib
 
-from railrl.core import logger
-from railrl.pythonplusplus import find_key_recursive
-from railrl.samplers.rollout_functions import tdm_rollout, \
+from rlkit.core import logger
+from rlkit.pythonplusplus import find_key_recursive
+from rlkit.samplers.rollout_functions import tdm_rollout, \
     create_rollout_function
-from railrl.torch.core import PyTorchModule
-from railrl.visualization.video import dump_video
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.torch.core import PyTorchModule
+from rlkit.visualization.video import dump_video
+from rlkit.torch.pytorch_util import set_gpu_mode
 
 
 def get_max_tau(args):

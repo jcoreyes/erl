@@ -1,16 +1,16 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
-from railrl.state_distance.tdm_networks import TdmPolicy, \
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
+from rlkit.state_distance.tdm_networks import TdmPolicy, \
     TdmQf
-from railrl.state_distance.tdm_td3 import TdmTd3
-from railrl.torch.networks.experimental import HuberLoss
+from rlkit.state_distance.tdm_td3 import TdmTd3
+from rlkit.torch.networks.experimental import HuberLoss
 
 
 def experiment(variant):

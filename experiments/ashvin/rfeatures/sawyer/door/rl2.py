@@ -7,17 +7,17 @@ a bit noisy from one epoch to the next (occasionally dips dow to ~2000).
 Note that one epoch = 5k steps, so 200 epochs = 1 million steps.
 """
 
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.obs_dict_replay_buffer import ObsDictRelabelingBuffer
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import \
+from rlkit.exploration_strategies.gaussian_and_epislon import \
     GaussianAndEpislonStrategy
-from railrl.samplers.data_collector import GoalConditionedPathCollector
-from railrl.torch.her.her import HERTrainer
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.td3.td3 import TD3
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.samplers.data_collector import GoalConditionedPathCollector
+from rlkit.torch.her.her import HERTrainer
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.td3.td3 import TD3
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 
@@ -25,20 +25,20 @@ from multiworld.core.image_env import ImageEnv
 from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
 # from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
-# import railrl.util.hyperparameter as hyp
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
+# import rlkit.util.hyperparameter as hyp
+from rlkit.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 
 import torch
 
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 import numpy as np
 
-from railrl.visualization.video import VideoSaveFunction
+from rlkit.visualization.video import VideoSaveFunction
 
-from railrl.launchers.arglauncher import run_variants
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
 
-# from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+# from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
 
 def experiment(variant):
     representation_size = 128

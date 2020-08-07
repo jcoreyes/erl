@@ -1,13 +1,13 @@
 import sys
 
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.exploration_strategies.base import \
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.policies.simple import ZeroPolicy
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.policies.simple import ZeroPolicy
 import numpy as np
 
 print("making env")

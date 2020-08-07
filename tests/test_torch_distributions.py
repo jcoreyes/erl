@@ -2,9 +2,9 @@ import unittest
 import torch
 import numpy as np
 from torch.distributions import Normal
-from railrl.testing.np_test_case import NPTestCase
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.distributions import TanhNormal
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch.distributions import TanhNormal
 
 class TestNormalDistribution(NPTestCase):
     """

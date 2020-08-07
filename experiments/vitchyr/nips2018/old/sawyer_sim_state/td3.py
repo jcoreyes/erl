@@ -1,17 +1,17 @@
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYZEnv
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.torch.pytorch_util as ptu
-from railrl.torch.td3.td3 import TD3
-import railrl.misc.hyperparameter as hyp
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.torch.pytorch_util as ptu
+from rlkit.torch.td3.td3 import TD3
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

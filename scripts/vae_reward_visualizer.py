@@ -1,13 +1,13 @@
 import torch
 import numpy as np
 import pickle
-from railrl.misc.asset_loader import load_local_or_remote_file
-import railrl.torch.pytorch_util as ptu
+from rlkit.misc.asset_loader import load_local_or_remote_file
+import rlkit.torch.pytorch_util as ptu
 
 
 vae_path = '/home/khazatsky/rail/data/rail-khazatsky/sasha/PCVAE/DCVAE/run20/id0/itr_600.pkl'
 
-# vae_path = '/home/shikharbahl/research/railrl-private/data/local/shikhar/corl2019/pointmass/real/run0/id0/vae.pkl'
+# vae_path = '/home/shikharbahl/research/rlkit-private/data/local/shikhar/corl2019/pointmass/real/run0/id0/vae.pkl'
 
 
 vae = load_local_or_remote_file(vae_path)

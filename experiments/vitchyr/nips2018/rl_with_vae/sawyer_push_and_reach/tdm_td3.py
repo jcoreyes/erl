@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEasyEnv
-from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
+from rlkit.images.camera import sawyer_init_camera_zoomed_in_fixed
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.torch.vae.tdm_td3_vae_experiment import tdm_td3_vae_experiment
 
 if __name__ == "__main__":
     n_seeds = 1

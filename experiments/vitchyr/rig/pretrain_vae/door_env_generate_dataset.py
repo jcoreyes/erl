@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import (
     sawyer_door_env_camera,
 )
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerDoorEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import generate_vae_dataset
 
 if __name__ == "__main__":
     variant = dict(

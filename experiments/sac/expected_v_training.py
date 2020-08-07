@@ -4,14 +4,14 @@ import random
 
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.expected_sac import ExpectedSAC
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.networks import ConcatMlp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sac.expected_sac import ExpectedSAC
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.networks import ConcatMlp
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

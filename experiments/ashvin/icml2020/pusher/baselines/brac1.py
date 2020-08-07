@@ -2,16 +2,16 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.launchers.experiments.awac.awac_gcrl import experiment, process_args
+from rlkit.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from rlkit.launchers.experiments.awac.awac_gcrl import experiment, process_args
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
-from railrl.torch.sac.policies import GaussianPolicy
+from rlkit.torch.sac.policies import GaussianPolicy
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_leap import SawyerPushAndReachXYEnv
-from railrl.torch.networks import Clamp
+from rlkit.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(

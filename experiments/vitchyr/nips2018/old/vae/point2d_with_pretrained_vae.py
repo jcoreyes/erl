@@ -1,20 +1,20 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskImagePoint2DEnv
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
-from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.point2d import MultitaskImagePoint2DEnv
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.vae_wrappers import VAEWrappedImageGoalEnv, VAEWrappedEnv
+from rlkit.envs.wrappers import ImageMujocoEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.td3.td3 import TD3
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.td3.td3 import TD3
 
 
 def experiment(variant):
@@ -27,8 +27,8 @@ def experiment(variant):
     # vae = torch.load(vae_path)
     # print("loaded", vae_path)
 
-    from railrl.envs.wrappers import ImageMujocoEnv, NormalizedBoxEnv
-    from railrl.images.camera import sawyer_init_camera
+    from rlkit.envs.wrappers import ImageMujocoEnv, NormalizedBoxEnv
+    from rlkit.images.camera import sawyer_init_camera
 
     env = variant["env"](**variant['env_kwargs'])
     env = NormalizedBoxEnv(ImageMujocoEnv(
@@ -108,9 +108,9 @@ def experiment(variant):
 if __name__ == "__main__":
     # noinspection PyTypeChecker
     vae_paths = {
-        # "2": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_14_04_0000--s-99859/params.pkl",
-        # "4": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_19_02_0000--s-9523/params.pkl",
-        # "16": "/home/vitchyr/git/railrl/data/local/04-24-dev/04-24-dev_2018_04_24_22_28_58_0000--s-52846/params.pkl"
+        # "2": "/home/vitchyr/git/rlkit/data/local/04-24-dev/04-24-dev_2018_04_24_22_14_04_0000--s-99859/params.pkl",
+        # "4": "/home/vitchyr/git/rlkit/data/local/04-24-dev/04-24-dev_2018_04_24_22_19_02_0000--s-9523/params.pkl",
+        # "16": "/home/vitchyr/git/rlkit/data/local/04-24-dev/04-24-dev_2018_04_24_22_28_58_0000--s-52846/params.pkl"
         "8": "/home/vitchyr/git/railrl/data/doodads3/04-25-sawyer-reach-xy-vae-train-2/04-25-sawyer-reach-xy-vae-train-2-id0-s9267/params.pkl",
     }
 

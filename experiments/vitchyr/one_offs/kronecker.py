@@ -9,8 +9,8 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 # Training settings
-from railrl.pythonplusplus import line_logger
-from railrl.torch.pytorch_util import kronecker_product
+from rlkit.pythonplusplus import line_logger
+from rlkit.torch.pytorch_util import kronecker_product
 
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',

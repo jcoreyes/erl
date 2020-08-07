@@ -6,17 +6,17 @@ import gym
 import numpy as np
 from torch import nn as nn
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
-from railrl.envs.mujoco.hopper_env import HopperEnv
-from railrl.launchers.launcher_util import setup_logger, run_experiment
-from railrl.torch.dqn.double_dqn import DoubleDQN
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
-from railrl.envs.wrappers import DiscretizeEnv
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.mujoco.discrete_reacher import DiscreteReacherEnv
+from rlkit.envs.mujoco.discrete_swimmer import DiscreteSwimmerEnv
+from rlkit.envs.mujoco.hopper_env import HopperEnv
+from rlkit.launchers.launcher_util import setup_logger, run_experiment
+from rlkit.torch.dqn.double_dqn import DoubleDQN
+from rlkit.torch.dqn.dqn import DQN
+from rlkit.torch.networks import Mlp
+from rlkit.envs.wrappers import DiscretizeEnv
 
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

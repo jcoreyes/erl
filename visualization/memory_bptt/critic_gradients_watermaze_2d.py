@@ -14,8 +14,8 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-from railrl.envs.pygame.water_maze import WaterMaze
-import railrl.visualization.visualization_util as vu
+from rlkit.envs.pygame.water_maze import WaterMaze
+import rlkit.visualization.visualization_util as vu
 from visualization.memory_bptt.analyze_critic_watermaze_1d import (
     create_optimal_qf
 )

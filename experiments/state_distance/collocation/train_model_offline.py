@@ -1,19 +1,19 @@
 import joblib
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_7dof import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.reacher_7dof import (
     Reacher7DofFullGoal
 )
-from railrl.exploration_strategies.base import \
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.mpc.controller import MPCController
-from railrl.torch.mpc.dynamics_model import DynamicsModel
-from railrl.torch.mpc.model_trainer import ModelTrainer
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from rlkit.torch.mpc.controller import MPCController
+from rlkit.torch.mpc.dynamics_model import DynamicsModel
+from rlkit.torch.mpc.model_trainer import ModelTrainer
 
 
 def experiment(variant):

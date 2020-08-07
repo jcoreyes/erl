@@ -7,17 +7,17 @@ from collections import defaultdict
 
 import joblib
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.rllab_util import get_logger_table_dict
-from railrl.state_distance.policies import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.rllab_util import get_logger_table_dict
+from rlkit.state_distance.policies import (
     SoftOcOneStepRewardPolicy,
     ArgmaxQFPolicy,
     StateOnlySdqBasedSqpOcPolicy,
     SamplePolicyPartialOptimizer,
 )
 from state_distance.rollout_util import multitask_rollout
-from railrl.core import logger
+from rlkit.core import logger
 
 
 def get_class_params_to_try(policy_class):

@@ -1,4 +1,4 @@
-from railrl.launchers.launcher_util import run_experiment_here
+from rlkit.launchers.launcher_util import run_experiment_here
 
 import doodad as dd
 

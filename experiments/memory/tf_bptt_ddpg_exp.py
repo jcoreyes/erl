@@ -7,29 +7,29 @@ import numpy as np
 import tensorflow as tf
 from hyperopt import hp
 
-from railrl.data_management.ocm_subtraj_replay_buffer import (
+from rlkit.data_management.ocm_subtraj_replay_buffer import (
     OcmSubtrajReplayBuffer
 )
-from railrl.envs.memory.high_low import HighLow
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.algo_launchers import bptt_ddpg_launcher
-from railrl.launchers.launcher_util import (
+from rlkit.envs.memory.high_low import HighLow
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.algo_launchers import bptt_ddpg_launcher
+from rlkit.launchers.launcher_util import (
     run_experiment,
 )
-from railrl.launchers.launcher_util import (
+from rlkit.launchers.launcher_util import (
     run_experiment_here,
     create_base_log_dir,
 )
-from railrl.misc.hyperparameter import (
+from rlkit.misc.hyperparameter import (
     DeterministicHyperparameterSweeper,
     RandomHyperparameterSweeper,
     LogFloatParam,
     LinearFloatParam,
 )
-from railrl.misc.hypopt import optimize_and_save
-from railrl.tf.bptt_ddpg import BpttDDPG
-from railrl.tf.ddpg import TargetUpdateMode
-from railrl.tf.policies.memory.lstm_memory_policy import (
+from rlkit.misc.hypopt import optimize_and_save
+from rlkit.tf.bptt_ddpg import BpttDDPG
+from rlkit.tf.ddpg import TargetUpdateMode
+from rlkit.tf.policies.memory.lstm_memory_policy import (
     SeparateLstmLinearCell,
 )
 

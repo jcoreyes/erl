@@ -1,20 +1,20 @@
-from railrl.demos.collect_demo import collect_demos_fixed
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.demos.collect_demo import collect_demos_fixed
+from rlkit.misc.asset_loader import load_local_or_remote_file
 import gym
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 
 if __name__ == '__main__':
-    # data = load_local_or_remote_file('/home/murtaza/research/railrl/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
+    # data = load_local_or_remote_file('/home/murtaza/research/rlkit/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
     # env = data['exploration/env']
     # policy = data['exploration/policy']
     # collect_demos_fixed(env, policy, "data/local/demos/walker_action_noise_1000.npy", N=1000, horizon=1000, threshold=5000, render=False)
 
-    # data = load_local_or_remote_file('/home/murtaza/research/railrl/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
+    # data = load_local_or_remote_file('/home/murtaza/research/rlkit/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
     # env = data['exploration/env']
     # policy = data['exploration/policy']
     # collect_demos_fixed(env, policy, "data/local/demos/walker_action_noise_10.npy", N=10, horizon=1000, threshold=5000, render=False)
     
-    # data = load_local_or_remote_file('/home/murtaza/research/railrl/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
+    # data = load_local_or_remote_file('/home/murtaza/research/rlkit/data/doodads3/03-09-sac-mujoco-envs-unnormalized-run-longer/03-09-sac_mujoco_envs_unnormalized_run_longer_2020_03_10_00_01_32_id000--s84127/params.pkl')
     # env = data['exploration/env']
     # policy = data['exploration/policy']
     # collect_demos_fixed(env, policy, "data/local/demos/walker_action_noise_15.npy", N=15, horizon=1000, threshold=5000, render=False)

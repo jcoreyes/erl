@@ -3,12 +3,12 @@ Try out distributional DDPG.
 """
 import random
 
-from railrl.sandbox.distributional import DistributionalDDPG, \
+from rlkit.sandbox.distributional import DistributionalDDPG, \
     FeedForwardZFunction
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardPolicy
-import railrl.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardPolicy
+import rlkit.torch.pytorch_util as ptu
 
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.normalized_env import normalize

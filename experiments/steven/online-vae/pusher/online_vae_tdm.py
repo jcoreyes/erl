@@ -1,14 +1,14 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.images.camera import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.images.camera import (
     sawyer_init_camera_zoomed_in_fixed,
 )
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_tdm_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
 
 if __name__ == "__main__":
     variant = dict(

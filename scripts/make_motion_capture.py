@@ -4,12 +4,12 @@ import os.path as osp
 
 import joblib
 
-from railrl.core import logger
-from railrl.samplers.rollout_functions import multitask_rollout, \
+from rlkit.core import logger
+from rlkit.samplers.rollout_functions import multitask_rollout, \
     create_rollout_function
-from railrl.torch.core import PyTorchModule
-from railrl.visualization.video import dump_video
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.torch.core import PyTorchModule
+from rlkit.visualization.video import dump_video
+from rlkit.torch.pytorch_util import set_gpu_mode
 
 
 def simulate_policy(args):

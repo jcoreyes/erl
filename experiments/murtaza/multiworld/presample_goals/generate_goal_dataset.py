@@ -1,7 +1,7 @@
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
 import numpy as np
-from railrl.policies.simple import RandomPolicy
+from rlkit.policies.simple import RandomPolicy
 import os.path as osp
 
 def generate_goal_data_set(env=None, num_goals=1000, use_cached_dataset=False, action_scale=1/10, representation_size=16, imsize=84):

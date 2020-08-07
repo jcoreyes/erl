@@ -3,10 +3,10 @@ import numpy as np
 
 plt.style.use("ggplot")
 import pickle
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 import torch
 
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 model_class = TimestepPredictionModel
 representation_size = 128
 output_classes = 20

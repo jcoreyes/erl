@@ -1,20 +1,20 @@
 import argparse
 import random
 
-from railrl.tf.state_distance.model_learning import ModelLearning
-from railrl.tf.state_distance.util import get_replay_buffer
+from rlkit.tf.state_distance.model_learning import ModelLearning
+from rlkit.tf.state_distance.util import get_replay_buffer
 from torch.nn import functional as F
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv,
 )
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.old.model_based_policies import MultistepModelBasedPolicy
-from railrl.tf.predictors import Mlp
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.old.model_based_policies import MultistepModelBasedPolicy
+from rlkit.tf.predictors import Mlp
 
 
 def experiment(variant):

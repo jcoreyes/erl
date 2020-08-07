@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 
-from railrl.data_management.path_builder import PathBuilder
-from railrl.testing.np_test_case import NPTestCase
+from rlkit.data_management.path_builder import PathBuilder
+from rlkit.testing.np_test_case import NPTestCase
 
 class TestPath(NPTestCase):
 

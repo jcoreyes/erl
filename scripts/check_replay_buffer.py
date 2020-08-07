@@ -8,7 +8,7 @@ import joblib
 
 import argparse
 
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
 import matplotlib.pyplot as plt
 
 

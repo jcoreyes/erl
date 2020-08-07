@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from exp_util import (
     run_experiment,
     parse_args,
     preprocess_args,
 )
-from railrl.launchers.exp_launcher import rl_experiment
+from rlkit.launchers.exp_launcher import rl_experiment
 
 from multiworld.envs.pygame.pick_and_place import PickAndPlaceEnv
 from roboverse.envs.goal_conditioned.sawyer_lift_gc import SawyerLiftEnvGC

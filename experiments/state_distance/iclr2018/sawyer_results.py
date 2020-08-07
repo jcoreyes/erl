@@ -1,11 +1,11 @@
-from railrl.misc.data_processing import get_all_csv
+from rlkit.misc.data_processing import get_all_csv
 import matplotlib.pyplot as plt
 import numpy as np
 
-# naf_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer/naf/"
-# ddpg_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
+# naf_path = "/home/vitchyr/git/rllab-rail/rlkit/data/papers/iclr2018/sawyer/naf/"
+# ddpg_path = "/home/vitchyr/git/rllab-rail/rlkit/data/papers/iclr2018/sawyer" \
 #             "/ddpg-new"
-# tdm_path = "/home/vitchyr/git/rllab-rail/railrl/data/papers/iclr2018/sawyer" \
+# tdm_path = "/home/vitchyr/git/rllab-rail/rlkit/data/papers/iclr2018/sawyer" \
 #            "/tdm-new/"
 ddpg_path = "/mnt/data-backup-12-02-2017/papers/iclr2018/sawyer_new/ddpg/"
 tdm_path = "/mnt/data-backup-12-02-2017/papers/iclr2018/sawyer_new/tdm/"

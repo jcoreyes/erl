@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.contextual.rig.rig_launcher import rig_experiment
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.contextual.rig.rig_launcher import rig_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 from roboverse.envs.sawyer_rig_gr_v0 import SawyerRigGRV0Env
 

@@ -1,11 +1,11 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.vae.generate_goal_dataset import generate_goal_dataset_using_policy
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v3
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import HER_baseline_her_td3_full_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import HER_baseline_her_td3_full_experiment
 from multiworld.envs.mujoco.cameras import \
         sawyer_pick_and_place_camera, sawyer_pick_and_place_camera_slanted_angle
-from railrl.envs.goal_generation.pickup_goal_dataset import \
+from rlkit.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset, get_image_presampled_goals_from_image_env
 
 

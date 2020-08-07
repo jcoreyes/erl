@@ -1,5 +1,5 @@
-from railrl.envs.memory.high_low import HighLow
-from railrl.envs.pygame.water_maze import (
+from rlkit.envs.memory.high_low import HighLow
+from rlkit.envs.pygame.water_maze import (
     WaterMaze,
     WaterMazeMemory,
     WaterMazeHard,
@@ -8,11 +8,11 @@ from railrl.envs.pygame.water_maze import (
     WaterMaze1D,
     WaterMazeMemory1D,
 )
-from railrl.launchers.launcher_util import (
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.launchers.memory_bptt_launchers import (
+from rlkit.launchers.memory_bptt_launchers import (
     trpo_launcher,
     mem_trpo_launcher,
     rtrpo_launcher,
@@ -20,7 +20,7 @@ from railrl.launchers.memory_bptt_launchers import (
     mem_ddpg_launcher,
     rdpg_launcher,
 )
-from railrl.misc.hyperparameter import DeterministicHyperparameterSweeper
+from rlkit.misc.hyperparameter import DeterministicHyperparameterSweeper
 from rllab.envs.mujoco.walker2d_env import Walker2DEnv
 
 if __name__ == '__main__':

@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.conv_vae import ConvVAE, SpatialAutoEncoder
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.vae.sawyer2d_reach_data import get_data
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.conv_vae import ConvVAE, SpatialAutoEncoder
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.vae.sawyer2d_reach_data import get_data
 
 
 def experiment(variant):
     num_feat_points=variant['feat_points']
-    from railrl.core import logger
+    from rlkit.core import logger
     beta = variant["beta"]
     print('collecting data')
     train_data, test_data, info = get_data(**variant['get_data_kwargs'])

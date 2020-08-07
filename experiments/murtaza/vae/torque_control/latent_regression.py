@@ -1,15 +1,15 @@
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.vae_wrappers import load_vae
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.vae_wrappers import load_vae
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.supervised_learning.supervised_algorithm import SupervisedAlgorithm
 
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     info = dict()
     logger.save_extra_data(info)
     logger.get_snapshot_dir()

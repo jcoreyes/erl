@@ -1,21 +1,21 @@
 
-import railrl.misc.hyperparameter as hyp
-from railrl.images.camera import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.images.camera import (
     # sawyer_init_camera_zoomed_in,
     # sawyer_init_camera,
     # sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_out_fixed,
     sawyer_init_camera_zoomed_in_fixed)
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import PiecewiseLinearSchedule
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
 
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = generate_vae_dataset(

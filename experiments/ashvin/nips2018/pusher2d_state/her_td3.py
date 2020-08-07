@@ -1,15 +1,15 @@
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import SimpleHerReplayBuffer
-from railrl.envs.multitask.pusher2d import CylinderXYPusher2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import SimpleHerReplayBuffer
+from rlkit.envs.multitask.pusher2d import CylinderXYPusher2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.launchers.launcher_util import setup_logger, run_experiment
-from railrl.launchers.arglauncher import run_variants
-from railrl.torch.her.her_td3 import HerTd3
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.misc.hyperparameter as hyp
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.launchers.launcher_util import setup_logger, run_experiment
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.torch.her.her_td3 import HerTd3
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

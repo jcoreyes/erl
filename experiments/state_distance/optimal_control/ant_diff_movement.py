@@ -6,10 +6,10 @@ import numpy as np
 import torch
 from torch import optim
 
-from railrl.state_distance.util import merge_into_flat_obs
-from railrl.torch import pytorch_util as ptu
-from railrl.misc.eval_util import get_generic_path_information
-from railrl.core import logger
+from rlkit.state_distance.util import merge_into_flat_obs
+from rlkit.torch import pytorch_util as ptu
+from rlkit.misc.eval_util import get_generic_path_information
+from rlkit.core import logger
 
 
 def find_reachable_goal_state(env, ob, tau, qf, policy):

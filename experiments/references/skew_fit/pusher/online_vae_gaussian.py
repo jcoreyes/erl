@@ -1,11 +1,11 @@
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import \
     grill_her_twin_sac_online_vae_full_experiment
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
 
 if __name__ == "__main__":

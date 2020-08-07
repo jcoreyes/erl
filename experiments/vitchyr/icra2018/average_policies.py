@@ -2,11 +2,11 @@ import argparse
 
 import joblib
 
-from railrl.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
-from railrl.policies.base import Policy
-from railrl.samplers.util import rollout
+from rlkit.envs.mujoco.pusher3dof import PusherEnv3DOF, get_snapshots_and_goal
+from rlkit.policies.base import Policy
+from rlkit.samplers.util import rollout
 from rllab.envs.normalized_env import normalize
-from railrl.core import logger
+from rlkit.core import logger
 
 
 class AveragerPolicy(Policy):

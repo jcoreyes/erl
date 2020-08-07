@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from railrl.misc.np_util import truncated_geometric
+from rlkit.misc.np_util import truncated_geometric
 
 truncated_geom_factor = 1
 max_tau = 5

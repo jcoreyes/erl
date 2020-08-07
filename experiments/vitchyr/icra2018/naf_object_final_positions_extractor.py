@@ -3,7 +3,7 @@ import joblib
 
 import numpy as np
 
-from railrl.samplers.util import rollout
+from rlkit.samplers.util import rollout
 
 files = dict(
     reach_left=(

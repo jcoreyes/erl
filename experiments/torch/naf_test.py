@@ -3,13 +3,13 @@ Experiments with NAF.
 """
 import random
 
-import railrl.torch.pytorch_util as ptu
-from railrl.exploration_strategies.base import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.naf import NafPolicy, NAF
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.naf import NafPolicy, NAF
 from rllab.envs.mujoco.ant_env import AntEnv
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
 from rllab.envs.mujoco.hopper_env import HopperEnv
@@ -17,7 +17,7 @@ from rllab.envs.mujoco.inverted_double_pendulum_env import \
     InvertedDoublePendulumEnv
 from rllab.envs.mujoco.swimmer_env import SwimmerEnv
 from rllab.envs.normalized_env import normalize
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 
 
 def experiment(variant):

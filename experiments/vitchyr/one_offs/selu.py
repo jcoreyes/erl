@@ -28,7 +28,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 
 # Training settings
-from railrl.pythonplusplus import line_logger
+from rlkit.pythonplusplus import line_logger
 
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',

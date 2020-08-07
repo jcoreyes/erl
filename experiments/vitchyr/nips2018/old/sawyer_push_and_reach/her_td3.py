@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.data_management.her_replay_buffer import RelabelingReplayBuffer
-from railrl.envs.mujoco.sawyer_push_and_reach_env import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.data_management.her_replay_buffer import RelabelingReplayBuffer
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import \
     SawyerPushAndReachXYEnv, SawyerPushAndReachXYEasyEnv
-from railrl.launchers.experiments.vitchyr.multitask import her_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.vitchyr.multitask import her_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     variant = dict(

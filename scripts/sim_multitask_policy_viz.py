@@ -3,13 +3,13 @@ import pickle
 
 import numpy as np
 
-from railrl.core import logger
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.envs.wrappers import ImageMujocoEnv
-from railrl.samplers.rollout_functions import multitask_rollout
-from railrl.torch.core import PyTorchModule
-from railrl.torch.pytorch_util import set_gpu_mode
+from rlkit.core import logger
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.vae_wrappers import VAEWrappedEnv
+from rlkit.envs.wrappers import ImageMujocoEnv
+from rlkit.samplers.rollout_functions import multitask_rollout
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.pytorch_util import set_gpu_mode
 
 
 def simulate_policy(args):
@@ -36,7 +36,7 @@ def simulate_policy(args):
         policy.train(False)
     paths = []
 
-    from railrl.misc.inspect_q_util import debug_q
+    from rlkit.misc.inspect_q_util import debug_q
     debug_q(data["ensemble_qs"], policy)
 
     while True:

@@ -1,16 +1,16 @@
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.misc import eval_util
-from railrl.samplers.rollout_functions import rollout
-from railrl.torch.core import PyTorchModule
-import railrl.torch.pytorch_util as ptu
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.misc import eval_util
+from rlkit.samplers.rollout_functions import rollout
+from rlkit.torch.core import PyTorchModule
+import rlkit.torch.pytorch_util as ptu
 import argparse
 import pickle
 import uuid
-from railrl.core import logger
+from rlkit.core import logger
 
 filename = str(uuid.uuid4())
 
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 
 def simulate_policy(args):
     data = pickle.load(open(args.file, "rb"))

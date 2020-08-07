@@ -3,10 +3,10 @@ import argparse
 import joblib
 
 import numpy as np
-from railrl.state_distance.policies import SamplePolicyPartialOptimizer
-from railrl.samplers.util import rollout
-from railrl.torch.pytorch_util import set_gpu_mode
-from railrl.core import logger
+from rlkit.state_distance.policies import SamplePolicyPartialOptimizer
+from rlkit.samplers.util import rollout
+from rlkit.torch.pytorch_util import set_gpu_mode
+from rlkit.core import logger
 
 if __name__ == "__main__":
 

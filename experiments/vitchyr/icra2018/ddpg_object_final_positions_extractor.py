@@ -3,7 +3,7 @@ import joblib
 
 import numpy as np
 
-from railrl.samplers.util import rollout
+from rlkit.samplers.util import rollout
 
 bottom_path = (
     '/home/vitchyr/git/rllab-rail/railrl/data/papers/icra2017/'

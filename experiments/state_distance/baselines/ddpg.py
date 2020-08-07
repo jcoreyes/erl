@@ -1,16 +1,16 @@
 import random
 
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.multitask.ant_env import GoalXYPosAnt
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.multitask.ant_env import GoalXYPosAnt
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.networks import TanhMlpPolicy, MlpQf
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.ddpg.ddpg import DDPG
+from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from rlkit.torch.networks import TanhMlpPolicy, MlpQf
 
 
 def experiment(variant):

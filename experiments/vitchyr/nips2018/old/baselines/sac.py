@@ -1,13 +1,13 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
 
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerPushXYEnv
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
 
 
 def experiment(variant):

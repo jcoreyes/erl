@@ -6,12 +6,12 @@ NOTE: You need PyTorch 0.3 or more (to have torch.distributions)
 import gym
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import setup_logger
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
-from railrl.torch.networks import ConcatMlp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import setup_logger
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
+from rlkit.torch.networks import ConcatMlp
 
 
 def experiment(variant):

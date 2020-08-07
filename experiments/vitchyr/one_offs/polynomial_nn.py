@@ -6,15 +6,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils import data
-import railrl.misc.visualization_util as vu
+import rlkit.misc.visualization_util as vu
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from railrl.misc.html_report import HTMLReport
-from railrl.pythonplusplus import line_logger
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.modules import SelfOuterProductLinear
-from railrl.torch.pytorch_util import double_moments
+from rlkit.misc.html_report import HTMLReport
+from rlkit.pythonplusplus import line_logger
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch.modules import SelfOuterProductLinear
+from rlkit.torch.pytorch_util import double_moments
 
 
 class BatchSquare(nn.Module):

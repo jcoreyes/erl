@@ -1,15 +1,15 @@
-from railrl.demos.td3_bc import TD3BCTrainer
-from railrl.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
-import railrl.torch.pytorch_util as ptu
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.samplers.data_collector.step_collector import MdpStepCollector
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.td3.td3 import TD3
-from railrl.torch.torch_rl_algorithm import (
+from rlkit.demos.td3_bc import TD3BCTrainer
+from rlkit.exploration_strategies.base import PolicyWrappedWithExplorationStrategy
+from rlkit.exploration_strategies.gaussian_and_epislon import GaussianAndEpislonStrategy
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.envs.wrappers import NormalizedBoxEnv
+import rlkit.torch.pytorch_util as ptu
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.samplers.data_collector.step_collector import MdpStepCollector
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.td3.td3 import TD3
+from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
@@ -21,7 +21,7 @@ from gym.envs.mujoco import (
     HopperEnv,
 )
 
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF

@@ -1,24 +1,24 @@
 """
 Check linear_ocm_policy on OneCharMemory task.
 """
-from railrl.launchers.launcher_util import (
+from rlkit.launchers.launcher_util import (
     run_experiment,
     run_experiment_here,
 )
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.tf.ddpg_ocm import DdpgOcm
-    from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
-    from railrl.exploration_strategies.noop import NoopStrategy
-    from railrl.exploration_strategies.onehot_sampler import OneHotSampler
-    from railrl.exploration_strategies.product_strategy import ProductStrategy
-    from railrl.envs.memory.continuous_memory_augmented import (
+    from rlkit.tf.ddpg_ocm import DdpgOcm
+    from rlkit.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+    from rlkit.exploration_strategies.noop import NoopStrategy
+    from rlkit.exploration_strategies.onehot_sampler import OneHotSampler
+    from rlkit.exploration_strategies.product_strategy import ProductStrategy
+    from rlkit.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.envs.memory.one_char_memory import OneCharMemoryEndOnly
-    from railrl.tf.policies.memory.linear_ocm_policy import LinearOcmPolicy
-    from railrl.launchers.launcher_util import (
+    from rlkit.envs.memory.one_char_memory import OneCharMemoryEndOnly
+    from rlkit.tf.policies.memory.linear_ocm_policy import LinearOcmPolicy
+    from rlkit.launchers.launcher_util import (
         set_seed,
     )
 

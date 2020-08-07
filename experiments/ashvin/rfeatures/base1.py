@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_experiments import train_rfeatures_model
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer, LatentPathPredictorTrainer, GeometricTimePredictorTrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_experiments import train_rfeatures_model
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer, LatentPathPredictorTrainer, GeometricTimePredictorTrainer
 
 if __name__ == "__main__":
     variant = dict(

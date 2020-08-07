@@ -2,14 +2,14 @@
 # import numpy as np
 # import mnist_data
 # import os
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.point2d_data import get_data
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.point2d_data import get_data
 # import plot_utils
 # import glob
 # import ss.path
 
 # import argparse
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 def experiment(variant):
     beta = variant["beta"]

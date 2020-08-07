@@ -1,13 +1,13 @@
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.wrappers import convert_gym_space
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.algos.parallel_ddpg import ParallelDDPG
-from railrl.envs.ros.baxter_env import BaxterEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.wrappers import convert_gym_space
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.algos.parallel_ddpg import ParallelDDPG
+from rlkit.envs.ros.baxter_env import BaxterEnv
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
 import sys
-from railrl.launchers.launcher_util import continue_experiment
-from railrl.launchers.launcher_util import resume_torch_algorithm
+from rlkit.launchers.launcher_util import continue_experiment
+from rlkit.launchers.launcher_util import resume_torch_algorithm
 from rllab.envs.normalized_env import normalize
 
 def example(variant):

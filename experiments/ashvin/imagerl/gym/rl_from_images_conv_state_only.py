@@ -1,22 +1,22 @@
-from railrl.envs.multitask.multitask_env import MultitaskToFlatEnv
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.mujoco.pusher2d import Pusher2DEnv
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.envs.multitask.multitask_env import MultitaskToFlatEnv
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.mujoco.pusher2d import Pusher2DEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import (
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import (
     ConcatMlp, TanhMlpPolicy, ImageStatePolicy, ImageStateQ,
     MergedCNN, CNNPolicy,
 )
-import railrl.torch.pytorch_util as ptu
-from railrl.torch.td3.td3 import TD3
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.torch.pytorch_util as ptu
+from rlkit.torch.td3.td3 import TD3
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.core.gym_to_multi_env import GymToMultiEnv
 from multiworld.core.image_env import ImageEnv
@@ -27,17 +27,17 @@ import torch
 def her_td3_experiment(variant):
     import multiworld.envs.mujoco
     import multiworld.envs.pygame
-    import railrl.samplers.rollout_functions as rf
-    import railrl.torch.pytorch_util as ptu
-    from railrl.exploration_strategies.base import (
+    import rlkit.samplers.rollout_functions as rf
+    import rlkit.torch.pytorch_util as ptu
+    from rlkit.exploration_strategies.base import (
         PolicyWrappedWithExplorationStrategy
     )
-    from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-    from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-    from railrl.exploration_strategies.ou_strategy import OUStrategy
-    from railrl.torch.grill.launcher import get_video_save_func
-    from railrl.torch.her.her_td3 import HerTd3
-    from railrl.data_management.obs_dict_replay_buffer import (
+    from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+    from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+    from rlkit.exploration_strategies.ou_strategy import OUStrategy
+    from rlkit.torch.grill.launcher import get_video_save_func
+    from rlkit.torch.her.her_td3 import HerTd3
+    from rlkit.data_management.obs_dict_replay_buffer import (
         ObsDictRelabelingBuffer
     )
 

@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.contextual.rig.rig_launcher import (
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.contextual.rig.rig_launcher import (
     rig_experiment
 )
 

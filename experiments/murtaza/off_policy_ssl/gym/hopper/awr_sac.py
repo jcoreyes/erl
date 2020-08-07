@@ -1,7 +1,7 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.sac.policies import GaussianPolicy
-from railrl.launchers.experiments.awac.awac_rl import experiment
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.sac.policies import GaussianPolicy
+from rlkit.launchers.experiments.awac.awac_rl import experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     varihopper = dict(

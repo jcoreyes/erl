@@ -1,25 +1,25 @@
 """
 Check DDPG + memory states on OneCharMemory task.
 """
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import (
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
-from railrl.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
-from railrl.tf.policies.memory.action_aware_memory_policy import \
+from rlkit.qfunctions.memory.mlp_memory_qfunction import MlpMemoryQFunction
+from rlkit.tf.policies.memory.action_aware_memory_policy import \
     ActionAwareMemoryPolicy
 
 
 def run_linear_ocm_exp(variant):
-    from railrl.tf.ddpg import DDPG
-    from railrl.envs.memory.continuous_memory_augmented import (
+    from rlkit.tf.ddpg import DDPG
+    from rlkit.envs.memory.continuous_memory_augmented import (
         ContinuousMemoryAugmented
     )
-    from railrl.envs.memory.one_char_memory import (
+    from rlkit.envs.memory.one_char_memory import (
         OneCharMemoryEndOnly,
     )
-    from railrl.launchers.launcher_util import (
+    from rlkit.launchers.launcher_util import (
         set_seed,
     )
 

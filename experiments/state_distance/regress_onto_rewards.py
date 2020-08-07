@@ -3,22 +3,22 @@ import random
 
 import numpy as np
 from hyperopt import hp
-from railrl.tf.state_distance.supervised_learning import SupervisedLearning
-from railrl.tf.state_distance.util import get_replay_buffer
+from rlkit.tf.state_distance.supervised_learning import SupervisedLearning
+from rlkit.tf.state_distance.util import get_replay_buffer
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.multitask.reacher_env import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.multitask.reacher_env import (
     GoalStateSimpleStateReacherEnv)
-from railrl.envs.wrappers import convert_gym_space
-from railrl.launchers.launcher_util import (
+from rlkit.envs.wrappers import convert_gym_space
+from rlkit.launchers.launcher_util import (
     create_log_dir,
     create_run_experiment_multiple_seeds,
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.hypopt import optimize_and_save
-from railrl.misc.ml_util import LinearSchedule
-from railrl.state_distance.old.networks import UniversalQfunction
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.hypopt import optimize_and_save
+from rlkit.misc.ml_util import LinearSchedule
+from rlkit.state_distance.old.networks import UniversalQfunction
 
 
 def experiment(variant):

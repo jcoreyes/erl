@@ -2,20 +2,20 @@ import random
 
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.reacher_7dof import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.reacher_7dof import (
     # Reacher7DofFullGoal,
     Reacher7DofXyzGoalState,
 )
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.mpc.collocation import \
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.mpc.collocation import \
     CollocationMpcController
-from railrl.state_distance.tdm_sac import TdmSac
-from railrl.torch.networks import FlattenMlp
+from rlkit.state_distance.tdm_sac import TdmSac
+from rlkit.torch.networks import FlattenMlp
 
 
 def experiment(variant):

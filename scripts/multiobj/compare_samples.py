@@ -1,11 +1,11 @@
 import torch
 import numpy as np
 import pickle
-from railrl.misc.asset_loader import load_local_or_remote_file
-import railrl.torch.pytorch_util as ptu
+from rlkit.misc.asset_loader import load_local_or_remote_file
+import rlkit.torch.pytorch_util as ptu
 
 from torchvision.utils import save_image
-from railrl.data_management.images import normalize_image
+from rlkit.data_management.images import normalize_image
 
 # dataset_path = "/tmp/SawyerMultiobjectEnv_N100000_sawyer_pusher_camera_upright_v2_imsize48_random_oracle_split_0.npy"
 # cvae_path = "/home/ashvin/data/s3doodad/ashvin/corl2019/pusher/color2/run102/id0/itr_500.pkl"

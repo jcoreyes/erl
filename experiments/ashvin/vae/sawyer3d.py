@@ -1,9 +1,9 @@
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.vae.sawyer3D_data import get_data
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
-import railrl.torch.pytorch_util as ptu
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.vae.sawyer3D_data import get_data
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.torch.pytorch_util as ptu
 
 train_data, test_data = get_data()
 

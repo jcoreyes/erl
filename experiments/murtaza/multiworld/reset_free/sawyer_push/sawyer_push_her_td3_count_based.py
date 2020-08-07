@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_reset import SawyerPushAndReachXYEnv
-from railrl.data_management.obs_dict_count_based_replay_buffer import ObsDictCountBasedRelabelingBuffer
-from railrl.images.camera import sawyer_init_camera_zoomed_in_fixed
-from railrl.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.data_management.obs_dict_count_based_replay_buffer import ObsDictCountBasedRelabelingBuffer
+from rlkit.images.camera import sawyer_init_camera_zoomed_in_fixed
+from rlkit.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

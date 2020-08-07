@@ -1,17 +1,17 @@
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import CNNPolicy, MergedCNN
-from railrl.torch.networks.experimental import HuberLoss
-from railrl.envs.wrappers import ImageMujocoWithObsEnv
-from railrl.torch.ddpg.ddpg import DDPG
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import CNNPolicy, MergedCNN
+from rlkit.torch.networks.experimental import HuberLoss
+from rlkit.envs.wrappers import ImageMujocoWithObsEnv
+from rlkit.torch.ddpg.ddpg import DDPG
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
 
-from railrl.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
-import railrl.images.camera as camera
+from rlkit.envs.mujoco.pusher2d import RandomGoalPusher2DEnv
+import rlkit.images.camera as camera
 import torch
 
 def experiment(variant):

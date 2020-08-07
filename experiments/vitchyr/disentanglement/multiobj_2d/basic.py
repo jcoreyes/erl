@@ -1,6 +1,6 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.disentanglement.state_launcher import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.disentanglement.state_launcher import (
     her_sac_experiment,
 )
 

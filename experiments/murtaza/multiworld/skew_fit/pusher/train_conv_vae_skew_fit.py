@@ -1,15 +1,15 @@
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from torch import nn
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import generate_vae_dataset
-from railrl.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import generate_vae_dataset
+from rlkit.torch.vae.conv_vae import ConvVAE, imsize48_default_architecture
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
 
 def experiment(variant):
-    from railrl.core import logger
-    import railrl.torch.pytorch_util as ptu
+    from rlkit.core import logger
+    import rlkit.torch.pytorch_util as ptu
     beta = variant["beta"]
     representation_size = variant["representation_size"]
     train_data, test_data, info = variant['generate_vae_dataset_fn'](

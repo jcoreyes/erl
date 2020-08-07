@@ -1,9 +1,9 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.experiments.vitchyr.multitask import tdm_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
-from railrl.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
-from railrl.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
-from railrl.torch.networks.experimental import HuberLoss
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.vitchyr.multitask import tdm_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.envs.mujoco.sawyer_gripper_env import SawyerXYEnv
+from rlkit.envs.mujoco.sawyer_reach_env import SawyerReachXYEnv
+from rlkit.torch.networks.experimental import HuberLoss
 
 
 if __name__ == "__main__":

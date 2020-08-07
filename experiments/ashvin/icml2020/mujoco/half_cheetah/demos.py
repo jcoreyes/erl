@@ -1,7 +1,7 @@
-from railrl.demos.collect_demo import collect_demos_fixed
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.demos.collect_demo import collect_demos_fixed
+from rlkit.misc.asset_loader import load_local_or_remote_file
 
-from railrl.launchers.experiments.awac.awac_rl import ENV_PARAMS
+from rlkit.launchers.experiments.awac.awac_rl import ENV_PARAMS
 
 if __name__ == '__main__':
     data = load_local_or_remote_file('ashvin/icml2020/mujoco/reference/run1/id0/itr_1000.pkl')

@@ -1,11 +1,11 @@
 import os.path as osp
 import multiworld.envs.mujoco as mwmj
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_door_env_camera_v0
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture
-from railrl.torch.grill.ray_experiments import grill_her_twin_sac_online_vae_full_experiment
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture
+from rlkit.torch.grill.ray_experiments import grill_her_twin_sac_online_vae_full_experiment
 import ray.tune as tune
 
 if __name__ == "__main__":
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         ),
     )
 
-    from railrl.launchers.ray.launcher import launch_experiment
+    from rlkit.launchers.ray.launcher import launch_experiment
     n_seeds = 6
     mode = 'gcp'
     exp_prefix = 'skew-fit-door-from-gcp-ray-7'

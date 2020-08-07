@@ -9,18 +9,18 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.data_management.env_replay_buffer import EnvReplayBuffer
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.samplers.data_collector import MdpPathCollector
-from railrl.torch.networks import ConcatMlp
-from railrl.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
-from railrl.torch.sac.sac import SACTrainer
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.samplers.data_collector import MdpPathCollector
+from rlkit.torch.networks import ConcatMlp
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
+from rlkit.torch.sac.sac import SACTrainer
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 import ray
 import ray.tune as tune
-from railrl.launchers.ray.launcher import launch_experiment
+from rlkit.launchers.ray.launcher import launch_experiment
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF

@@ -8,8 +8,8 @@ from visualization.grill.config import (
     configure_matplotlib,
 )
 import matplotlib.pyplot as plt
-from railrl.visualization import plot_util as plot
-from railrl.misc import data_processing as dp
+from rlkit.visualization import plot_util as plot
+from rlkit.misc import data_processing as dp
 
 configure_matplotlib(matplotlib)
 

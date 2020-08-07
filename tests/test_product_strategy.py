@@ -1,8 +1,8 @@
 import unittest
 
-from railrl.exploration_strategies.product_strategy import ProductStrategy
-from railrl.testing.np_test_case import NPTestCase
-from railrl.testing.stub_classes import AddEs, StubPolicy
+from rlkit.exploration_strategies.product_strategy import ProductStrategy
+from rlkit.testing.np_test_case import NPTestCase
+from rlkit.testing.stub_classes import AddEs, StubPolicy
 
 
 class TestProductStrategy(NPTestCase):

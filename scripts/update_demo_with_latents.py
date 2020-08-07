@@ -6,17 +6,17 @@ from multiworld.core.image_env import ImageEnv
 from multiworld.envs.real_world.sawyer.sawyer_reaching import SawyerReachXYZEnv
 # from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 
-# import railrl.util.hyperparameter as hyp
-from railrl.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
+# import rlkit.util.hyperparameter as hyp
+from rlkit.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
 
 import torch
 
-from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 
-# from railrl.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
+# from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_trainer import TimePredictionTrainer
 
 import matplotlib
 matplotlib.use('TkAgg')

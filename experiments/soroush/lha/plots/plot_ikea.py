@@ -4,7 +4,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
-from railrl.misc.data_processing import get_trials
+from rlkit.misc.data_processing import get_trials
 
 from common import plot_variant
 

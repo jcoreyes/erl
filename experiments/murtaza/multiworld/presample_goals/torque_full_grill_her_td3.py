@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.torch.vae.dataset.generate_goal_dataset import generate_goal_data_set
+import rlkit.misc.hyperparameter as hyp
+from rlkit.torch.vae.dataset.generate_goal_dataset import generate_goal_data_set
 from multiworld.envs.mujoco.cameras import sawyer_torque_reacher_camera
 from multiworld.envs.mujoco.sawyer_reach_torque.sawyer_reach_torque_env import SawyerReachTorqueEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_full_experiment
-from railrl.torch.vae.dataset.sawyer_torque_control_data import generate_vae_dataset
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_full_experiment
+from rlkit.torch.vae.dataset.sawyer_torque_control_data import generate_vae_dataset
 
 if __name__ == "__main__":
     # n_seeds = 1

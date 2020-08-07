@@ -1,7 +1,7 @@
-from railrl.demos.collect_demo import collect_demos_fixed
+from rlkit.demos.collect_demo import collect_demos_fixed
 
-from railrl.demos.spacemouse.input_server import SpaceMouseExpert
-# from railrl.demos.collect_demo import SpaceMouseExpert
+from rlkit.demos.spacemouse.input_server import SpaceMouseExpert
+# from rlkit.demos.collect_demo import SpaceMouseExpert
 
 # from multiworld.core.image_env import ImageEnv
 # from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2

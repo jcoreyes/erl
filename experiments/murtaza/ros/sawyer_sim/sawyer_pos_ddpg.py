@@ -1,11 +1,11 @@
-from railrl.exploration_strategies.base import (
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.ddpg.ddpg import DDPG
-import railrl.torch.pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.ddpg.ddpg import DDPG
+import rlkit.torch.pytorch_util as ptu
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 
 def experiment(variant):

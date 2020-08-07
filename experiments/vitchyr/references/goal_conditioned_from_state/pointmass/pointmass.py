@@ -1,6 +1,6 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.rl_exp_launcher_util import twin_sac_experiment
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.rl_exp_launcher_util import twin_sac_experiment
 
 if __name__ == "__main__":
     variant = dict(

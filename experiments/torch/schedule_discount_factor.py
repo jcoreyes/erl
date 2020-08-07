@@ -3,17 +3,17 @@ See if slowly raising discount factor can stablize DDPG.
 """
 import random
 
-from railrl.envs.mujoco.twod_point import TwoDPoint
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import (
+from rlkit.envs.mujoco.twod_point import TwoDPoint
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import (
     run_experiment,
     set_seed,
 )
 
 
 def experiment(variant):
-    from railrl.torch.ddpg import DDPG
-    from railrl.launchers.launcher_util import (
+    from rlkit.torch.ddpg import DDPG
+    from rlkit.launchers.launcher_util import (
         set_seed,
     )
     seed = variant['seed']

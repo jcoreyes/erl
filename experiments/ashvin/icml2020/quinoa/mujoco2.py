@@ -2,15 +2,15 @@
 AWR + SAC from demo experiment
 """
 
-from railrl.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
-from railrl.demos.source.mdp_path_loader import MDPPathLoader
-from railrl.launchers.experiments.ashvin.quinoa_rl import experiment, process_args
+from rlkit.demos.source.dict_to_mdp_path_loader import DictToMDPPathLoader
+from rlkit.demos.source.mdp_path_loader import MDPPathLoader
+from rlkit.launchers.experiments.ashvin.quinoa_rl import experiment, process_args
 
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.arglauncher import run_variants
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.arglauncher import run_variants
 
-from railrl.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy, BinnedGMMPolicy
-from railrl.torch.networks import Clamp
+from rlkit.torch.sac.policies import GaussianPolicy, GaussianMixturePolicy, BinnedGMMPolicy
+from rlkit.torch.networks import Clamp
 
 if __name__ == "__main__":
     variant = dict(

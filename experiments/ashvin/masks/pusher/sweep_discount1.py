@@ -1,13 +1,13 @@
-from railrl.launchers.launcher_util import run_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.misc.hyperparameter as hyp
 import argparse
 import math
 
-from railrl.launchers.exp_launcher import rl_experiment
+from rlkit.launchers.exp_launcher import rl_experiment
 
 from multiworld.envs.mujoco.cameras import *
 
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_leap import SawyerPushAndReachXYEnv
 

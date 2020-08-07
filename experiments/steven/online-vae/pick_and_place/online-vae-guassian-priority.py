@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.cameras import \
         sawyer_pick_and_place_camera, sawyer_pick_and_place_camera_slanted_angle
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
         get_image_presampled_goals
-from railrl.envs.goal_generation.pickup_goal_dataset import \
+from rlkit.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place \
         import SawyerPickAndPlaceEnv, SawyerPickAndPlaceEnvYZ

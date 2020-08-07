@@ -1,18 +1,18 @@
 import sys
-from railrl.misc.asset_loader import sync_down
-from railrl.misc.asset_loader import load_local_or_remote_file
+from rlkit.misc.asset_loader import sync_down
+from rlkit.misc.asset_loader import load_local_or_remote_file
 import torch
 import pickle
 import numpy as np
 from multiworld.core.image_env import ImageEnv
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch import pytorch_util as ptu
 import matplotlib
 matplotlib.use('Agg')
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
-from railrl.data_management.dataset  import \
+from rlkit.data_management.dataset  import \
         TrajectoryDataset, ImageObservationDataset, InitialObservationDataset
-from railrl.data_management.images import normalize_image, unnormalize_image
+from rlkit.data_management.images import normalize_image, unnormalize_image
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in, sawyer_pusher_camera_upright_v2
 x_var = 0.2

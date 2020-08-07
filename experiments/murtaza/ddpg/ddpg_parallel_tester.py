@@ -1,15 +1,15 @@
 import random
 
-from railrl.envs.env_utils import get_dim
-from railrl.exploration_strategies.base import \
+from rlkit.envs.env_utils import get_dim
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.launchers.launcher_util import resume_torch_algorithm, \
+from rlkit.launchers.launcher_util import resume_torch_algorithm, \
     continue_experiment, run_experiment
-from railrl.torch.networks import FeedForwardQFunction, FeedForwardPolicy
-from railrl.torch.ddpg.ddpg import DDPG
+from rlkit.torch.networks import FeedForwardQFunction, FeedForwardPolicy
+from rlkit.torch.ddpg.ddpg import DDPG
 from rllab.envs.mujoco.half_cheetah_env import HalfCheetahEnv
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.torch import pytorch_util as ptu
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.torch import pytorch_util as ptu
 import sys
 from rllab.envs.normalized_env import normalize
 

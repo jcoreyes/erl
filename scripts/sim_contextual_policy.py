@@ -1,15 +1,15 @@
 import argparse
 import pickle
 
-from railrl.core import logger
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.vae_wrappers import VAEWrappedEnv
-from railrl.samplers.rollout_functions import (
+from rlkit.core import logger
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.vae_wrappers import VAEWrappedEnv
+from rlkit.samplers.rollout_functions import (
     multitask_rollout,
     contextual_rollout,
 )
-from railrl.torch.core import PyTorchModule
-import railrl.torch.pytorch_util as ptu
+from rlkit.torch.core import PyTorchModule
+import rlkit.torch.pytorch_util as ptu
 
 
 def simulate_policy(args):

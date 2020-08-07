@@ -2,11 +2,11 @@ import argparse
 import pickle
 import uuid
 
-import railrl.samplers.rollout_functions as rf
-from railrl.visualization.video import dump_video
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.remote import RemoteRolloutEnv
-from railrl.envs.vae_wrappers import VAEWrappedEnv
+import rlkit.samplers.rollout_functions as rf
+from rlkit.visualization.video import dump_video
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.remote import RemoteRolloutEnv
+from rlkit.envs.vae_wrappers import VAEWrappedEnv
 
 
 def make_video(args):

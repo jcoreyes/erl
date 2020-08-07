@@ -3,15 +3,15 @@ Example of running PyTorch implementation of DDPG on HalfCheetah.
 """
 import gym
 
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.state_distance.tdm_sac import TdmSac
-import railrl.torch.pytorch_util as ptu
-from railrl.state_distance.tdm_networks import TdmQf, TdmVf, StochasticTdmPolicy
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.reacher_7dof import Reacher7DofXyzGoalState
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.state_distance.tdm_sac import TdmSac
+import rlkit.torch.pytorch_util as ptu
+from rlkit.state_distance.tdm_networks import TdmQf, TdmVf, StochasticTdmPolicy
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
 import numpy as np
 
 def experiment(variant):

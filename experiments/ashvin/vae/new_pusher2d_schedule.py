@@ -2,18 +2,18 @@
 # import numpy as np
 # import mnist_data
 # import os
-from railrl.torch.vae.conv_vae import ConvVAE
-from railrl.torch.vae.vae_trainer import ConvVAETrainer
-from railrl.torch.vae.pusher2d_data import get_data
+from rlkit.torch.vae.conv_vae import ConvVAE
+from rlkit.torch.vae.vae_trainer import ConvVAETrainer
+from rlkit.torch.vae.pusher2d_data import get_data
 # import plot_utils
 # import glob
 # import ss.path
 
 # import argparse
-from railrl.launchers.arglauncher import run_variants
-import railrl.torch.pytorch_util as ptu
+from rlkit.launchers.arglauncher import run_variants
+import rlkit.torch.pytorch_util as ptu
 
-from railrl.misc.ml_util import PiecewiseLinearSchedule
+from rlkit.misc.ml_util import PiecewiseLinearSchedule
 
 def experiment(variant):
     if variant["use_gpu"]:

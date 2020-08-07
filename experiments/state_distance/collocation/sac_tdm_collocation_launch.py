@@ -4,30 +4,30 @@ import torch
 import numpy as np
 from torch.nn import functional as F
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.point2d import MultitaskPoint2DEnv
-from railrl.envs.multitask.point2d_wall import MultitaskPoint2dWall
-from railrl.envs.multitask.reacher_7dof import (
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.point2d import MultitaskPoint2DEnv
+from rlkit.envs.multitask.point2d_wall import MultitaskPoint2dWall
+from rlkit.envs.multitask.reacher_7dof import (
     # Reacher7DofGoalStateEverything,
     Reacher7DofFullGoal, Reacher7DofXyzGoalState)
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import \
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import \
     PolicyWrappedWithExplorationStrategy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.launchers.launcher_util import run_experiment
-from railrl.state_distance.tdm_networks import TdmNormalizer, TdmQf, \
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.state_distance.tdm_networks import TdmNormalizer, TdmQf, \
     TdmVf, StochasticTdmPolicy
-from railrl.state_distance.experimental_tdm_networks import DebugQf
-from railrl.torch.data_management.normalizer import TorchFixedNormalizer
-from railrl.torch.mpc.collocation.collocation_mpc_controller import (
+from rlkit.state_distance.experimental_tdm_networks import DebugQf
+from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
+from rlkit.torch.mpc.collocation.collocation_mpc_controller import (
     TdmLBfgsBCMC,
     TdmToImplicitModel, LBfgsBCMC, TdmLBfgsBStateOnlyCMC)
-from railrl.torch.mpc.controller import MPCController, DebugQfToMPCController
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.state_distance.tdm_sac import TdmSac
-from railrl.torch.networks import FlattenMlp
+from rlkit.torch.mpc.controller import MPCController, DebugQfToMPCController
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.state_distance.tdm_sac import TdmSac
+from rlkit.torch.networks import FlattenMlp
 
 
 def experiment(variant):

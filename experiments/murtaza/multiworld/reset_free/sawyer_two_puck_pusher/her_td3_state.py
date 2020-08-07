@@ -1,10 +1,10 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env_two_pucks import SawyerPushAndReachXYZDoublePuckEnv
-from railrl.data_management.obs_dict_replay_buffer import \
+from rlkit.data_management.obs_dict_replay_buffer import \
     ObsDictRelabelingBuffer
-from railrl.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
-from railrl.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.murtaza.multiworld_her import her_td3_experiment
+from rlkit.launchers.launcher_util import run_experiment
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker

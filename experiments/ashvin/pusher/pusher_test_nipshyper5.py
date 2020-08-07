@@ -1,12 +1,12 @@
-from railrl.launchers.experiments.murtaza.multiworld import her_td3_experiment
-import railrl.misc.hyperparameter as hyp
+from rlkit.launchers.experiments.murtaza.multiworld import her_td3_experiment
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import sawyer_pusher_camera_upright_v2
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multienv import SawyerPushAndReachXYEasyEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.arglauncher import run_variants
 
 import numpy as np
 

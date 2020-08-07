@@ -1,8 +1,8 @@
-from railrl.misc.data_processing import get_trials
+from rlkit.misc.data_processing import get_trials
 import matplotlib.pyplot as plt
 import numpy as np
 
-from railrl.misc.visualization_util import sliding_mean
+from rlkit.misc.visualization_util import sliding_mean
 
 
 def main():

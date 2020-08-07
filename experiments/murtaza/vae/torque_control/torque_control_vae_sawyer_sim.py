@@ -1,8 +1,8 @@
-from railrl.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
-from railrl.images.camera import sawyer_torque_env_camera
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.vae.relabeled_vae_experiment import experiment
+from rlkit.envs.mujoco.sawyer_reach_torque_env import SawyerReachTorqueEnv
+from rlkit.images.camera import sawyer_torque_env_camera
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.vae.relabeled_vae_experiment import experiment
 
 if __name__ == "__main__":
     n_seeds = 1

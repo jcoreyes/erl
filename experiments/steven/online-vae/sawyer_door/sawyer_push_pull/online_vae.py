@@ -1,20 +1,20 @@
-import railrl.misc.hyperparameter as hyp
-from railrl.envs.mujoco.sawyer_push_and_reach_env import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.envs.mujoco.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEasyEnv
 )
-from railrl.images.camera import (
+from rlkit.images.camera import (
     sawyer_init_camera_zoomed_in_fixed,
     sawyer_init_camera_zoomed_in,
 )
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
-from railrl.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
-import railrl.torch.vae.vae_schedules as vae_schedules
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_td3_online_vae_full_experiment
+from rlkit.torch.vae.sawyer2d_push_variable_data import generate_vae_dataset
+import rlkit.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door import SawyerPushAndPullDoorEnv
-from railrl.images.camera import (
+from rlkit.images.camera import (
     sawyer_door_env_camera
 )
 

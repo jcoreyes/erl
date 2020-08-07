@@ -1,11 +1,11 @@
 import random
 import numpy as np
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.mujoco.discrete_reacher import DiscreteReacherEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.dqn import DQN
-from railrl.torch.networks import Mlp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.mujoco.discrete_reacher import DiscreteReacherEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.dqn.dqn import DQN
+from rlkit.torch.networks import Mlp
 
 
 def experiment(variant):

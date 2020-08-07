@@ -1,10 +1,10 @@
 """
 Skew the dataset so that it turns into generating a uniform distribution.
 """
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.misc.ml_util import ConstantSchedule
-from railrl.torch.vae.skew.datasets import (
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.misc.ml_util import ConstantSchedule
+from rlkit.torch.vae.skew.datasets import (
     uniform_truncated_data,
     four_corners,
     empty_dataset,
@@ -18,7 +18,7 @@ from railrl.torch.vae.skew.datasets import (
     project_square_cap_np,
     project_square_cap_split_np,
 )
-from railrl.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
+from rlkit.torch.vae.skew.skewed_vae_with_histogram import train_from_variant
 
 if __name__ == '__main__':
     variant = dict(

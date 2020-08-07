@@ -1,18 +1,18 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.reacher.generate_uniform_dataset import generate_uniform_dataset_reacher
 from multiworld.envs.mujoco.cameras import sawyer_init_camera_zoomed_in
-from railrl.launchers.launcher_util import run_experiment
-# from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
-from railrl.torch.grill.launcher import *
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_large_kernel_architecture, \
+from rlkit.launchers.launcher_util import run_experiment
+# from rlkit.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+from rlkit.torch.grill.launcher import *
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture, imsize48_large_kernel_architecture, \
 	imsize48_large_channel_architecture, imsize48_large_kernel_channels_architecture, imsize48_large_kernel_hidden_architecture
-from railrl.launchers.arglauncher import run_variants
+from rlkit.launchers.arglauncher import run_variants
 
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 
-from railrl.torch.vae.conditional_conv_vae import ConditionalConvVAE
-from railrl.torch.vae.vae_trainer import ConditionalConvVAETrainer
+from rlkit.torch.vae.conditional_conv_vae import ConditionalConvVAE
+from rlkit.torch.vae.vae_trainer import ConditionalConvVAETrainer
 
 def experiment(variant):
     full_experiment_variant_preprocess(variant)

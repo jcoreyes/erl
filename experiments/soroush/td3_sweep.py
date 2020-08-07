@@ -9,19 +9,19 @@ from gym.envs.mujoco import (
 )
 from gym.envs.classic_control import PendulumEnv
 
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.exploration_strategies.base import (
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.exploration_strategies.base import (
     PolicyWrappedWithExplorationStrategy
 )
-from railrl.exploration_strategies.epsilon_greedy import EpsilonGreedy
-from railrl.exploration_strategies.gaussian_strategy import GaussianStrategy
-from railrl.exploration_strategies.ou_strategy import OUStrategy
-from railrl.launchers.launcher_util import run_experiment
-import railrl.torch.pytorch_util as ptu
-from railrl.misc.variant_generator import VariantGenerator
-from railrl.torch.networks import ConcatMlp, TanhMlpPolicy
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.td3.td3 import TD3
+from rlkit.exploration_strategies.epsilon_greedy import EpsilonGreedy
+from rlkit.exploration_strategies.gaussian_strategy import GaussianStrategy
+from rlkit.exploration_strategies.ou_strategy import OUStrategy
+from rlkit.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.misc.variant_generator import VariantGenerator
+from rlkit.torch.networks import ConcatMlp, TanhMlpPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.td3.td3 import TD3
 
 COMMON_PARAMS = dict(
     num_epochs=3000,

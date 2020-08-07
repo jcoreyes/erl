@@ -2,18 +2,18 @@ import random
 
 import numpy as np
 
-import railrl.misc.hyperparameter as hyp
-import railrl.torch.pytorch_util as ptu
-from railrl.data_management.her_replay_buffer import HerReplayBuffer
-from railrl.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
-from railrl.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
-from railrl.envs.multitask.mountain_car_env import MountainCar
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.dqn.policy import ArgmaxDiscretePolicy
-from railrl.state_distance.tdm_dqn import TdmDqn
-from railrl.state_distance.old.discrete_action_networks import \
+import rlkit.misc.hyperparameter as hyp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.data_management.her_replay_buffer import HerReplayBuffer
+from rlkit.envs.multitask.cartpole_env import CartPole, CartPoleAngleOnly
+from rlkit.envs.multitask.discrete_reacher_2d import DiscreteReacher2D
+from rlkit.envs.multitask.mountain_car_env import MountainCar
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.dqn.policy import ArgmaxDiscretePolicy
+from rlkit.state_distance.tdm_dqn import TdmDqn
+from rlkit.state_distance.old.discrete_action_networks import \
     VectorizedDiscreteQFunction, ArgmaxDiscreteTdmPolicy
-from railrl.torch.networks import FlattenMlp
+from rlkit.torch.networks import FlattenMlp
 
 
 def experiment(variant):

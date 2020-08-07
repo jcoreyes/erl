@@ -1,12 +1,12 @@
-from railrl.envs.wrappers import NormalizedBoxEnv
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.networks import ConcatMlp
-import railrl.torch.pytorch_util as ptu
-from railrl.torch.sac.policies import TanhGaussianPolicy
-from railrl.torch.sac.sac import SoftActorCritic
+from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.networks import ConcatMlp
+import rlkit.torch.pytorch_util as ptu
+from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.sac import SoftActorCritic
 from sawyer_control.sawyer_reaching import SawyerXYZReachingEnv
 import numpy as np
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 import ray
 ray.init()
 def experiment(variant):

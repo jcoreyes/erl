@@ -8,9 +8,9 @@ import pytz
 import torch
 from pytz import timezone
 
-import railrl.torch.pytorch_util as ptu
-from railrl.core import logger
-from railrl.launchers.launcher_util import run_experiment
+import rlkit.torch.pytorch_util as ptu
+from rlkit.core import logger
+from rlkit.launchers.launcher_util import run_experiment
 
 
 def example(num_seconds, launch_time):

@@ -1,12 +1,12 @@
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from experiments.murtaza.multiworld.skew_fit.pick_and_place.generate_uniform_dataset import \
     generate_uniform_dataset_pick_and_place
 from multiworld.envs.mujoco.cameras import sawyer_pick_and_place_camera
-from railrl.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_vae_env
-from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
-import railrl.torch.vae.vae_schedules as vae_schedules
-from railrl.envs.goal_generation.pickup_goal_dataset import \
+from rlkit.envs.goal_generation.pickup_goal_dataset import get_image_presampled_goals_from_vae_env
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.torch.grill.launcher import grill_her_twin_sac_online_vae_full_experiment
+import rlkit.torch.vae.vae_schedules as vae_schedules
+from rlkit.envs.goal_generation.pickup_goal_dataset import \
         generate_vae_dataset
 
 if __name__ == "__main__":

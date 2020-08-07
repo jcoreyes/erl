@@ -1,7 +1,7 @@
 import argparse
 import math
 
-import railrl.misc.hyperparameter as hyp
+import rlkit.misc.hyperparameter as hyp
 from multiworld.envs.mujoco.cameras import init_sawyer_camera_v1, \
     init_sawyer_camera_v2, init_sawyer_camera_v3
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
@@ -10,8 +10,8 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import (
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_and_reach_env import (
     SawyerPushAndReachXYEnv
 )
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.soroush.multiworld_grill import grill_her_td3_full_experiment
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.soroush.multiworld_grill import grill_her_td3_full_experiment
 
 variant = dict(
     env_kwargs=dict(
@@ -107,7 +107,7 @@ search_space = {
     # 'grill_variant.observation_key': ['state_observation'],
     # 'grill_variant.desired_goal_key': ['latent_desired_goal'],
     # 'grill_variant.vae_paths': [
-    #     {"16": "/home/vitchyr/git/railrl/data/doodads3/06-12-dev/06-12"
+    #     {"16": "/home/vitchyr/git/rlkit/data/doodads3/06-12-dev/06-12"
     #            "-dev_2018_06_12_18_57_14_0000--s-28051/vae.pkl",
     #      }
     # ],

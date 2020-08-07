@@ -1,12 +1,12 @@
 import os.path as osp
 import torch.nn.functional as F
 import multiworld.envs.mujoco as mwmj
-import railrl.misc.hyperparameter as hyp
-from railrl.launchers.launcher_util import run_experiment
-from railrl.launchers.experiments.disentanglement.launcher import \
+import rlkit.misc.hyperparameter as hyp
+from rlkit.launchers.launcher_util import run_experiment
+from rlkit.launchers.experiments.disentanglement.launcher import \
         disentangled_grill_her_twin_sac_experiment
 
-from railrl.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_spatial
+from rlkit.torch.vae.conv_vae import imsize48_default_architecture, imsize48_default_architecture_spatial
 
 if __name__ == "__main__":
     variant = dict(

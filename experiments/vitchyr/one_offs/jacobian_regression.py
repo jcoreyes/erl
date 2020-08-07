@@ -1,15 +1,15 @@
 import numpy as np
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
-import railrl.torch.pytorch_util as ptu
+import rlkit.torch.pytorch_util as ptu
 import torch
 from gym.envs.mujoco import PusherEnv, AntEnv, HalfCheetahEnv, HumanoidStandupEnv
 from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Adam
 from torch import nn
 
-from railrl.torch.core import PyTorchModule
-from railrl.torch.networks import Mlp, OuterProductFF
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch.networks import Mlp, OuterProductFF
 
 plt.ion()
 
