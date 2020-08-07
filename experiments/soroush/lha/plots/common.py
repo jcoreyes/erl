@@ -3,8 +3,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from railrl.visualization.plot_util import plot_trials
-from railrl.visualization.plot_util import ma_filter
+from plot_util import plot_trials
+from plot_util import ma_filter
 
 def plot_variant(
         name_to_trials,

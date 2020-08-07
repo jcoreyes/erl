@@ -416,22 +416,33 @@ def plot_trials(
     y_keys = [y.replace(" ", "_") for y in y_keys]
     x_key = x_key.replace(" ", "_")
     all_trials = [t for trials in name_to_trials.values() for t in trials]
-    min_len = min_length(all_trials, x_key)
+    # min_len = min_length(all_trials, x_key)
     for name, trials in name_to_trials.items():
         all_values = []
         for trial in trials:
             if len(y_keys) == 1:
                 values = trial.data[y_keys[0]]
             else:
-                multiple_values = [
-                    trial.data[k] for k in y_keys
-                ]
-                values = process_values(multiple_values)
+                # multiple_values = [
+                #     trial.data[k] for k in y_keys
+                # ]
+                # values = process_values(multiple_values)
+                for k in y_keys:
+                    try:
+                        values = trial.data[k]
+                        break
+                    except:
+                        pass
             values = process_time_series(values)
             all_values.append(values)
-            x_values = trial.data[x_key][:min_len]
+            x_values = trial.data[x_key]
         try:
+            # min_len = np.min([len(values) for values in all_values])
+            # y_values = np.vstack([values[:min_len] for values in all_values])
+            # x_values = x_values[:min_len]
+            min_len = np.min([len(values) for values in all_values])
             y_values = np.vstack([values[:min_len] for values in all_values])
+            x_values = x_values[:min_len]
         except ValueError as e:
             import ipdb; ipdb.set_trace()
             print(e)
