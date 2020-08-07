@@ -20,6 +20,9 @@ gcrl = get_trials(
     # osp.join(base_path, 'pg-4obj/07-21-point'),
     osp.join(base_path, 'pg-4obj/07-28-eval-gcrl'),
 )
+vice = get_trials(
+    osp.join(base_path, 'pg-4obj/pg-vice'),
+)
 disco_no_mean_rlbl = get_trials(
     # osp.join(base_path, 'pg-4obj/07-21-inferred-n-30-no-goal-relabeling'),
     osp.join(base_path, 'pg-4obj/07-28-eval-disco-no-mean-rlbl'),
@@ -28,9 +31,6 @@ disco_no_cov_rlbl = get_trials(
     # osp.join(base_path, 'pg-4obj/07-21-inferred-n-30-no-mask-relabeling'),
     osp.join(base_path, 'pg-4obj/07-28-eval-disco-no-cov-rlbl'),
 )
-vice = get_trials(
-    osp.join(base_path, 'pg-4obj/pg-vice'),
-)
 
 name_to_trials = OrderedDict()
 name_to_trials['DisCo RL (ours)'] = disco
@@ -38,16 +38,14 @@ name_to_trials['GCRL'] = gcrl
 name_to_trials['VICE'] = vice
 name_to_trials['Ours: no mean relabeling'] = disco_no_mean_rlbl
 name_to_trials['Ours: no cov relabeling'] = disco_no_cov_rlbl
-    # 'GCRL': gcrl,
-    # 'Ours - mean relabeling': gdcrl_no_goal_relabeling,
-    # 'Ours - cov relabeling': gdcrl_no_mask_relabeling,
-# )
 x_label = 'Num Env Steps Total (x1000)'
 x_key = 'epoch'
 x_lim = (0, 2000)
 y_lim = (0, 4.5)
 
-### xy distance ###
+del name_to_trials['Ours: no mean relabeling']
+del name_to_trials['Ours: no cov relabeling']
+
 y_keys = [
     # 'evalenv_infosfinaldistance_to_target_obj_4 Mean',
     'evalenv_infosfinalnum_obj_success Mean',
@@ -64,5 +62,23 @@ plot_variant(
     show_legend=True,
     filter_frame=100,
     upper_limit=4.0,
-    # title='2D Pick and Place',
+    title='Flat World',
+)
+
+y_keys = [
+    'evalenv_infosfinaldistance_to_target_obj_0 Mean',
+    'evaluationenv_infosfinaldistance_to_target_obj_0 Mean',
+]
+y_label = 'Final Cursor Dist'
+y_lim = (0, 8.0)
+plot_name = 'pg_cursor.pdf'
+plot_variant(
+    name_to_trials,
+    plot_name,
+    x_key, y_keys,
+    x_label, y_label,
+    x_lim=x_lim, y_lim=y_lim,
+    show_legend=True,
+    filter_frame=100,
+    title='Flat World',
 )

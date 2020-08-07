@@ -15,11 +15,21 @@ def plot_variant(
         y_label,
         x_lim=None,
         y_lim=None,
-        show_legend=True,
+        show_legend=False,
         filter_frame=10,
         upper_limit=None,
         title=None,
 ):
+    plt.rcParams.update({'font.size': 14})
+    COLOR = 'black'
+    plt.rcParams['text.color'] = COLOR
+    plt.rcParams['axes.labelcolor'] = COLOR
+    plt.rcParams['xtick.color'] = COLOR
+    plt.rcParams['ytick.color'] = COLOR
+
+    # plt.rcParams["font.weight"] = "bold"
+    # plt.rcParams["axes.labelweight"] = "bold"
+
     plot_trials(
         name_to_trials,
         x_key=x_key,
@@ -31,7 +41,17 @@ def plot_variant(
         plt.axhline(y=upper_limit, color='gray', linestyle='dashed')
 
     if show_legend:
-        plt.legend()
+        # plt.legend()
+        plt.legend(bbox_to_anchor=(1.4, 0.5), loc='center', ncol=1)
+
+        # ax = plt.gca()
+        # leg = ax.get_legend()
+        # leg.legendHandles[0].set_color('blue')
+        # leg.legendHandles[1].set_color('orange')
+        # leg.legendHandles[2].set_color('green')
+        # leg.legendHandles[3].set_color('red')
+        # leg.legendHandles[4].set_color('purple')
+
     plt.xlabel(x_label)
     if x_lim is not None:
         plt.xlim(x_lim)

@@ -16,7 +16,6 @@ disco = get_trials(
     excluded_seeds=[98106],
 )
 gcrl = get_trials(
-    # osp.join(base_path, 'pb-4obj-rel/07-19-point'),
     osp.join(base_path, 'pb-4obj-rel/07-28-eval-gcrl-oracle'),
 )
 vice = get_trials(
@@ -25,12 +24,16 @@ vice = get_trials(
 disco_hard_coded = get_trials(
     osp.join(base_path, 'pb-4obj-rel/07-28-eval-disco-hard-coded'),
 )
+sac = get_trials(
+    osp.join(base_path, 'pb-4obj-rel/07-28-eval-vanilla-rl'),
+)
 
 name_to_trials = OrderedDict()
 name_to_trials['DisCo RL (ours)'] = disco
 name_to_trials['GCRL'] = gcrl
 name_to_trials['VICE'] = vice
-name_to_trials['Ours: hard coded cov'] = disco_hard_coded
+name_to_trials['DisCo RL + hard-coded $\omega$'] = disco_hard_coded
+name_to_trials['SAC'] = sac
 x_label = 'Num Env Steps Total (x1000)'
 x_key = 'epoch'
 x_lim = (0, 2000)

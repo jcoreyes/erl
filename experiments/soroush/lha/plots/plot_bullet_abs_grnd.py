@@ -17,6 +17,9 @@ disco = get_trials(
 gcrl = get_trials(
     osp.join(base_path, 'pb-4obj/07-28-eval-gcrl-grnd-postfix'),
 )
+vice = get_trials(
+    osp.join(base_path, 'pb-4obj/pb-4obj-vice-grnd'),
+)
 disco_no_mean_rlbl = get_trials(
     osp.join(base_path, 'pb-4obj/07-28-eval-disco-no-mean-rlbl-grnd-postfix'),
 )
@@ -27,6 +30,7 @@ disco_no_cov_rlbl = get_trials(
 name_to_trials = OrderedDict()
 name_to_trials['DisCo RL (ours)'] = disco
 name_to_trials['GCRL'] = gcrl
+name_to_trials['VICE'] = vice
 name_to_trials['Ours: no mean relabeling'] = disco_no_mean_rlbl
 name_to_trials['Ours: no cov relabeling'] = disco_no_cov_rlbl
 x_label = 'Num Env Steps Total (x1000)'
@@ -34,20 +38,40 @@ x_key = 'epoch'
 x_lim = (0, 4000)
 y_lim = (-0.1, 4.2)
 
-### xy distance ###
+# y_keys = [
+#     'evaluationenv_infosfinalnum_obj_success Mean',
+#     'evalenv_infosfinalnum_obj_success Mean',
+# ]
+# y_label = 'Num Successful Steps'
+# plot_name = 'bullet_abs_grnd.pdf'
+# plot_variant(
+#     name_to_trials,
+#     plot_name,
+#     x_key, y_keys,
+#     x_label, y_label,
+#     x_lim=x_lim, y_lim=y_lim,
+#     # show_legend=True,
+#     filter_frame=100,
+#     upper_limit=4.0,
+#     title='Sawyer',
+# )
+
+del name_to_trials['Ours: no mean relabeling']
+del name_to_trials['Ours: no cov relabeling']
+y_lim = (0.0, 0.75)
 y_keys = [
-    'evalenv_infosfinalnum_obj_success Mean',
+    'evaluationenv_infosfinalhand_dist Mean',
+    'evalenv_infosfinalhand_dist Mean',
 ]
-y_label = 'Num Successful Steps'
-plot_name = 'bullet_abs_grnd.pdf'
+y_label = 'Final End Effector Dist'
+plot_name = 'bullet_abs_grnd_ee.pdf'
 plot_variant(
     name_to_trials,
     plot_name,
     x_key, y_keys,
     x_label, y_label,
     x_lim=x_lim, y_lim=y_lim,
-    show_legend=True,
+    # show_legend=True,
     filter_frame=100,
-    upper_limit=4.0,
-    # title='Sawyer Pick and Place: General Goals',
+    title='Sawyer',
 )

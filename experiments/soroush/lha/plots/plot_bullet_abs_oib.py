@@ -18,14 +18,15 @@ disco = get_trials(
 gcrl = get_trials(
     osp.join(base_path, 'pb-4obj/07-28-eval-gcrl-oib-postfix'),
 )
+vice = get_trials(
+    # osp.join(base_path, 'pb-4obj/pb-4obj-vice-oib'),
+    osp.join(base_path, 'pb-4obj/pb-4obj-vice-oib-v2'),
+)
 disco_no_mean_rlbl = get_trials(
     osp.join(base_path, 'pb-4obj/07-28-eval-disco-no-mean-rlbl-oib-postfix'),
 )
 disco_no_cov_rlbl = get_trials(
     osp.join(base_path, 'pb-4obj/07-28-eval-disco-no-cov-rlbl-oib-postfix'),
-)
-vice = get_trials(
-    '/home/soroush/Downloads/run20',
 )
 
 name_to_trials = OrderedDict()
@@ -39,9 +40,10 @@ x_key = 'epoch'
 x_lim = (0, 4000)
 y_lim = (-0.1, 4.2)
 
-### xy distance ###
+del name_to_trials['Ours: no mean relabeling']
+del name_to_trials['Ours: no cov relabeling']
+
 y_keys = [
-    # 'evalenv_infosfinalcube_3_dist_Mean',
     'evaluationenv_infosfinalnum_bowl_obj_success Mean',
     'evalenv_infosfinalnum_bowl_obj_success Mean',
 ]
@@ -53,8 +55,26 @@ plot_variant(
     x_key, y_keys,
     x_label, y_label,
     x_lim=x_lim, y_lim=y_lim,
-    show_legend=True,
+    # show_legend=True,
     filter_frame=100,
     upper_limit=4.0,
-    # title='Sawyer Pick and Place: Place Objects in Bowl',
+    title='Sawyer',
+)
+
+y_lim = (0.0, 0.75)
+y_keys = [
+    'evaluationenv_infosfinalhand_dist Mean',
+    'evalenv_infosfinalhand_dist Mean',
+]
+y_label = 'Final End Effector Dist'
+plot_name = 'bullet_abs_oib_ee.pdf'
+plot_variant(
+    name_to_trials,
+    plot_name,
+    x_key, y_keys,
+    x_label, y_label,
+    x_lim=x_lim, y_lim=y_lim,
+    # show_legend=True,
+    filter_frame=100,
+    title='Sawyer',
 )
