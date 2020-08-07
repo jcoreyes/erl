@@ -7,27 +7,23 @@ if __name__ == '__main__':
     variant = dict(
         create_vae_kwargs=dict(
             latent_dim=128,
+            use_fancy_architecture=True,
             encoder_cnn_kwargs=dict(
-                # kernel_sizes=[4],
-                # n_channels=[128],
-                # strides=[2],
-                # paddings=[0],
                 kernel_sizes=[5, 3, 3],
                 n_channels=[16, 32, 64],
                 strides=[3, 2, 2],
-
-                # kernel_sizes=[3, 3, 3],
-                # n_channels=[32, 64, 128],
-                # strides=[1, 1, 1],
-                # paddings=[0, 0, 0],
-
                 pool_type='none',
                 hidden_activation='relu',
                 normalization_type='layer',
             ),
             encoder_mlp_kwargs=dict(
-                # hidden_sizes=[128, 128],
                 hidden_sizes=[],
+            ),
+            decoder_dcnn_kwargs=dict(
+                kernel_sizes=[3, 3, 6],
+                n_channels=[32, 16, 3],
+                strides=[2, 2, 3],
+                paddings=[0, 0, 0],
             ),
             decoder_mlp_kwargs=dict(
                 hidden_sizes=[256, 256],
@@ -44,6 +40,8 @@ if __name__ == '__main__':
                 debug_period=10,
                 unnormalize_images=True,
             ),
+            # beta=1,
+            # set_loss_weight=1,
             beta=0.001,
             set_loss_weight=0,
         ),
@@ -52,7 +50,7 @@ if __name__ == '__main__':
         ),
         algo_kwargs=dict(
             num_iters=101,
-            num_epochs_per_iter=10,
+            num_epochs_per_iter=100,
             # num_epochs=101,
             # num_epochs=11,
         ),
@@ -69,7 +67,6 @@ if __name__ == '__main__':
 
     search_space = {
         'vae_trainer_kwargs.beta': [
-            # 0.01, 0.1, 1, 10, 100,
             1,
         ],
         'vae_trainer_kwargs.set_loss_weight': [
@@ -77,49 +74,39 @@ if __name__ == '__main__':
         ],
         'create_vae_kwargs.use_mlp_decoder': [
             False,
-            True,
         ],
         'create_vae_kwargs.decoder_mlp_kwargs.hidden_sizes': [
-            [300, 400],
-            # [256, 256],
-            [128, 128],
+            [],
+        ],
+        'create_vae_kwargs.decoder_distribution': [
+            'gaussian_learned_global_scalar_variance',
         ],
         'create_vae_kwargs.latent_dim': [
-            128, 64, 32, 16
+            128, 64, 16
         ],
         'create_vae_kwargs.encoder_cnn_kwargs': [
             dict(
-                kernel_sizes=[4],
-                n_channels=[128],
-                strides=[2],
-                paddings=[0],
+                kernel_sizes=[5, 3, 3],
+                n_channels=[16, 32, 64],
+                strides=[3, 2, 2],
+                paddings=[0, 0, 0],
 
                 pool_type='none',
                 hidden_activation='relu',
                 normalization_type='batch',
             ),
-            dict(
-                kernel_sizes=[4],
-                n_channels=[128],
-                strides=[2],
-                paddings=[0],
-
-                pool_type='none',
-                hidden_activation='relu',
-                normalization_type='none',
-            ),
         ],
     }
-
     n_seeds = 1
-    mode = 'local'
+    # mode = 'local'
+    mode = 'here_no_doodad'
     exp_prefix = 'dev-{}'.format(
         __file__.replace('/', '-').replace('_', '-').split('.')[0]
     )
 
-    n_seeds = 1
+    n_seeds = 2
     mode = 'sss'
-    exp_prefix = 'exp1-debug-global-std'
+    exp_prefix = 'exp1-test-sasha-network-post-refactor'
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
         search_space, default_parameters=variant,

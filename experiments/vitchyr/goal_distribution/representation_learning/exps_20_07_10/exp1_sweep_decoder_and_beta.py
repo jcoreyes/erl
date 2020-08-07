@@ -1,7 +1,7 @@
 import railrl.misc.hyperparameter as hyp
 
 from railrl.launchers.launcher_util import run_experiment
-from railrl.torch.sets.launcher import test_offline_set_vae
+from railrl.torch.sets.vae_launcher import train_set_vae
 
 if __name__ == '__main__':
     variant = dict(
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                 trial_dir_suffix='beta-{}'.format(beta)
             )
             run_experiment(
-                test_offline_set_vae,
+                train_set_vae,
                 variant=variant,
                 exp_name='vae-decoder-beta-sweep',
                 mode='sss',
