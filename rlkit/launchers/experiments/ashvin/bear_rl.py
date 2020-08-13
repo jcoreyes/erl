@@ -385,28 +385,16 @@ def experiment(variant):
     target_qf1 = MlpQf(**target_qf_kwargs)
     target_qf2 = MlpQf(**target_qf_kwargs)
 
+    policy_class = variant.get("policy_class", TanhGaussianPolicy)
     policy_kwargs = copy.deepcopy(variant['policy_kwargs'])
     policy_kwargs['action_dim'] = action_dim
     policy_kwargs['obs_dim'] = state_dim
-    policy = TanhGaussianPolicy(**policy_kwargs)
+    policy = policy_class(**policy_kwargs)
 
     vae_policy = VAEPolicy(
         obs_dim=obs_dim,
         action_dim=action_dim,
         latent_dim=action_dim * 2,
-    )
-
-    expl_path_collector = MdpPathCollector(
-        expl_env,
-        policy,
-        **variant['expl_path_collector_kwargs']
-    )
-    eval_path_collector = MdpPathCollector(
-        eval_env,
-        # save_images=False,
-        # MakeDeterministic(policy),
-        PolicyFromQ(qf1, policy),
-        **variant['eval_path_collector_kwargs']
     )
 
     # vae_eval_path_collector = MdpPathCollector(
@@ -430,8 +418,8 @@ def experiment(variant):
         env=expl_env,
     )
 
-
-    trainer = BEARTrainer(
+    trainer_class = variant.get("trainer_class", BEARTrainer)
+    trainer = trainer_class(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -441,6 +429,20 @@ def experiment(variant):
         vae=vae_policy,
         replay_buffer=replay_buffer,
         **variant['trainer_kwargs']
+    )
+
+    expl_path_collector = MdpPathCollector(
+        expl_env,
+        # policy,
+        trainer.eval_policy, # PolicyFromQ(qf1, policy),
+        **variant['expl_path_collector_kwargs']
+    )
+    eval_path_collector = MdpPathCollector(
+        eval_env,
+        # save_images=False,
+        # MakeDeterministic(policy),
+        trainer.eval_policy, # PolicyFromQ(qf1, policy),
+        **variant['eval_path_collector_kwargs']
     )
 
     path_loader_class = variant.get('path_loader_class', MDPPathLoader)
