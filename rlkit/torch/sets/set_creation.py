@@ -4,7 +4,9 @@ from os import path as osp
 from multiworld.envs.pygame import PickAndPlaceEnv
 from rlkit.envs.pygame import pnp_util
 from rlkit.launchers.contextual.util import get_gym_env
+from rlkit.misc import asset_loader
 from rlkit.torch.sets.set_projection import Set
+from rlkit.launchers.config import LOCAL_LOG_DIR
 
 
 def create_sets(
@@ -17,7 +19,7 @@ def create_sets(
     **kwargs
 ):
     if saved_filename is not None:
-        sets = load(saved_filename)
+        sets = asset_loader.load_local_or_remote_file(saved_filename)
     else:
         env = get_gym_env(env_id, env_class=env_class, env_kwargs=env_kwargs)
         if isinstance(env, PickAndPlaceEnv):
@@ -63,9 +65,7 @@ def sample_pnp_sets(
 
 
 def get_absolute_path(relative_path):
-    path = osp.abspath(__file__)
-    dir_path = osp.dirname(path)
-    return osp.join(dir_path, relative_path)
+    return osp.join(LOCAL_LOG_DIR, relative_path)
 
 
 def load(relative_path):

@@ -100,7 +100,7 @@ class ObsDictReplayBuffer(ReplayBuffer):
     def num_steps_can_sample(self):
         return self._size
 
-    def add_path(self, path):
+    def add_path(self, path, ob_dicts_already_combined=False):
         obs = path["observations"]
         actions = path["actions"]
         rewards = path["rewards"]
@@ -108,16 +108,18 @@ class ObsDictReplayBuffer(ReplayBuffer):
         terminals = path["terminals"]
         path_len = len(rewards)
 
-        obs = combine_dicts(obs, self.ob_keys_to_save + self.internal_keys)
-        next_obs = combine_dicts(next_obs, self.ob_keys_to_save + self.internal_keys)
+        if not ob_dicts_already_combined:
+            obs = combine_dicts(obs, self.ob_keys_to_save + self.internal_keys)
+            next_obs = combine_dicts(
+                next_obs, self.ob_keys_to_save + self.internal_keys)
 
         if self._top + path_len >= self.max_size:
             num_pre_wrap_steps = self.max_size - self._top
             # numpy slice
-            pre_wrap_buffer_slice = np.s_[
-                                    self._top:self._top + num_pre_wrap_steps, :
-                                    ]
-            pre_wrap_path_slice = np.s_[0:num_pre_wrap_steps, :]
+            pre_wrap_buffer_slice = (
+                np.s_[self._top:self._top + num_pre_wrap_steps, ...]
+            )
+            pre_wrap_path_slice = np.s_[0:num_pre_wrap_steps, ...]
 
             num_post_wrap_steps = path_len - num_pre_wrap_steps
             post_wrap_buffer_slice = slice(0, num_post_wrap_steps)

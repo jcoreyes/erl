@@ -16,6 +16,10 @@ JOBLIB = 'joblib'
 TORCH = 'torch'
 
 
+def get_relative_path(filename):
+    return os.path.join(LOCAL_LOG_DIR, filename)
+
+
 def local_path_from_s3_or_local_path(filename):
     relative_filename = os.path.join(LOCAL_LOG_DIR, filename)
     if os.path.isfile(filename):
@@ -107,8 +111,6 @@ def load_local_or_remote_file(filepath, file_type=None, **kwargs):
             file_type = TORCH
         else:
             file_type = PICKLE
-    else:
-        file_type = PICKLE
     if file_type == NUMPY:
         object = np.load(open(local_path, "rb"), allow_pickle=True)
     elif file_type == JOBLIB:

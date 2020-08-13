@@ -40,12 +40,8 @@ from rlkit.torch.sets.models import create_dummy_image_vae
 from rlkit.torch.sets.set_creation import create_sets
 from rlkit.torch.sets.set_projection import Set
 from rlkit.torch.sets.vae_launcher import train_set_vae
-from rlkit.torch.torch_rl_algorithm import (
-    TorchBatchRLAlgorithm,
-    TorchOfflineBatchRLAlgorithm,
-)
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 from rlkit.visualization import video
-from rlkit.torch.vae.vae_torch_trainer import VAE
 
 
 class NormalLikelihoodRewardFn(ContextualRewardFn):
@@ -210,8 +206,6 @@ def disco_experiment(
         example_state_key="example_state",
         example_image_key="example_image",
         # Exploration
-        no_exploration=False,
-        replay_buffer_path=None,
         exploration_policy_kwargs=None,
         # Video parameters
         save_video=True,
@@ -230,84 +224,6 @@ def disco_experiment(
         renderer_kwargs = {}
 
     renderer = EnvRenderer(**renderer_kwargs)
-
-    def contextual_env_distrib_and_reward(
-        vae,
-        sets: typing.List[Set],
-        oracle_mean=False
-    ):
-        state_env = get_gym_env(
-            env_id, env_class=env_class, env_kwargs=env_kwargs
-        )
-        renderer = EnvRenderer(**renderer_kwargs)
-        img_env = InsertImageEnv(state_env, renderer=renderer)
-        encoded_env = EncoderWrappedEnv(
-            img_env,
-            vae,
-            step_keys_map={image_observation_key: latent_observation_key},
-        )
-        if oracle_mean:
-            context_env_class = InitStateConditionedContextualEnv
-            goal_distribution_params_distribution = (
-                OracleRIGMeanSetter(
-                    sets, vae, example_image_key,
-                    env=state_env,
-                    renderer=renderer,
-                    cycle_for_batch_size_1=True,
-                    **rig_goal_setter_kwargs
-                )
-            )
-        else:
-            context_env_class = ContextualEnv
-            goal_distribution_params_distribution = (
-                LatentGoalDictDistributionFromSet(
-                    sets, vae, example_image_key, cycle_for_batch_size_1=True,
-                )
-            )
-        set_diagnostics = SetDiagnostics(
-            set_description_key=set_description_key,
-            set_index_key=goal_distribution_params_distribution.set_index_key,
-            observation_key=state_observation_key,
-        )
-        if use_ground_truth_reward:
-            reward_fn = SetReward(
-                sets=sets,
-                set_index_key=goal_distribution_params_distribution.set_index_key,
-                observation_key=state_observation_key,
-            )
-            unbatched_reward_fn = SetReward(
-                sets=sets,
-                set_index_key=goal_distribution_params_distribution.set_index_key,
-                observation_key=state_observation_key,
-                batched=False,
-            )
-        else:
-            reward_fn = NormalLikelihoodRewardFn(
-                observation_key=latent_observation_key,
-                mean_key=goal_distribution_params_distribution.mean_key,
-                covariance_key=goal_distribution_params_distribution.covariance_key,
-                **reward_fn_kwargs
-            )
-            unbatched_reward_fn = NormalLikelihoodRewardFn(
-                observation_key=latent_observation_key,
-                mean_key=goal_distribution_params_distribution.mean_key,
-                covariance_key=goal_distribution_params_distribution.covariance_key,
-                batched=False,
-                **reward_fn_kwargs
-            )
-        env = context_env_class(
-            encoded_env,
-            context_distribution=goal_distribution_params_distribution,
-            reward_fn=reward_fn,
-            unbatched_reward_fn=unbatched_reward_fn,
-            observation_key=observation_key,
-            contextual_diagnostics_fns=[
-                # goal_diagnostics,
-                set_diagnostics,
-            ],
-            update_env_info_fn=delete_info,
-        )
-        return env, goal_distribution_params_distribution, reward_fn
 
     sets = create_sets(
         env_id,
@@ -338,10 +254,43 @@ def disco_experiment(
             renderer=renderer,
         )
     expl_env, expl_context_distrib, expl_reward = (
-        contextual_env_distrib_and_reward(model, sets)
+        contextual_env_distrib_and_reward(
+            vae=model,
+            sets=sets,
+            state_env=get_gym_env(
+                env_id, env_class=env_class, env_kwargs=env_kwargs,
+            ),
+            renderer=renderer,
+            reward_fn_kwargs=reward_fn_kwargs,
+            use_ground_truth_reward=use_ground_truth_reward,
+            state_observation_key=state_observation_key,
+            latent_observation_key=latent_observation_key,
+            example_image_key=example_image_key,
+            set_description_key=set_description_key,
+            observation_key=observation_key,
+            image_observation_key=image_observation_key,
+            rig_goal_setter_kwargs=rig_goal_setter_kwargs,
+        )
     )
     eval_env, eval_context_distrib, eval_reward = (
-        contextual_env_distrib_and_reward(model, sets, oracle_mean=rig)
+        contextual_env_distrib_and_reward(
+            vae=model,
+            sets=sets,
+            state_env=get_gym_env(
+                env_id, env_class=env_class, env_kwargs=env_kwargs,
+            ),
+            renderer=renderer,
+            reward_fn_kwargs=reward_fn_kwargs,
+            use_ground_truth_reward=use_ground_truth_reward,
+            state_observation_key=state_observation_key,
+            latent_observation_key=latent_observation_key,
+            example_image_key=example_image_key,
+            set_description_key=set_description_key,
+            observation_key=observation_key,
+            image_observation_key=image_observation_key,
+            rig_goal_setter_kwargs=rig_goal_setter_kwargs,
+            oracle_rig_goal=rig,
+        )
     )
     context_keys = [
         expl_context_distrib.mean_key,
@@ -437,48 +386,37 @@ def disco_experiment(
         context_keys_for_policy=context_keys_for_rl,
     )
 
-    if no_exploration:
-        algorithm = TorchOfflineBatchRLAlgorithm(
-            trainer=trainer,
-            evaluation_env=eval_env,
-            evaluation_data_collector=eval_path_collector,
-            replay_buffer=replay_buffer,
-            max_path_length=max_path_length,
-            **algo_kwargs,
-        )
-    else:
-        algorithm = TorchBatchRLAlgorithm(
-            trainer=trainer,
-            exploration_env=expl_env,
-            evaluation_env=eval_env,
-            exploration_data_collector=expl_path_collector,
-            evaluation_data_collector=eval_path_collector,
-            replay_buffer=replay_buffer,
-            max_path_length=max_path_length,
-            **algo_kwargs,
-        )
+    algorithm = TorchBatchRLAlgorithm(
+        trainer=trainer,
+        exploration_env=expl_env,
+        evaluation_env=eval_env,
+        exploration_data_collector=expl_path_collector,
+        evaluation_data_collector=eval_path_collector,
+        replay_buffer=replay_buffer,
+        max_path_length=max_path_length,
+        **algo_kwargs,
+    )
     algorithm.to(ptu.device)
 
     if save_video:
         set_index_key = eval_context_distrib.set_index_key
-        if not no_exploration:
-            expl_video_func = DisCoVideoSaveFunction(
-                model,
-                sets,
-                expl_path_collector,
-                tag="train",
-                reconstruction_key="image_reconstruction",
-                decode_set_image_key="decoded_set_prior",
-                set_visualization_key="set_visualization",
-                example_image_key=example_image_key,
-                set_index_key=set_index_key,
-                columns=len(sets),
-                unnormalize=True,
-                imsize=48,
-                image_format=renderer.output_image_format,
-                **save_video_kwargs,
-            )
-            algorithm.post_train_funcs.append(expl_video_func)
+        expl_video_func = DisCoVideoSaveFunction(
+            model,
+            sets,
+            expl_path_collector,
+            tag="train",
+            reconstruction_key="image_reconstruction",
+            decode_set_image_key="decoded_set_prior",
+            set_visualization_key="set_visualization",
+            example_image_key=example_image_key,
+            set_index_key=set_index_key,
+            columns=len(sets),
+            unnormalize=True,
+            imsize=48,
+            image_format=renderer.output_image_format,
+            **save_video_kwargs,
+        )
+        algorithm.post_train_funcs.append(expl_video_func)
 
         eval_video_func = DisCoVideoSaveFunction(
             model,
@@ -499,6 +437,121 @@ def disco_experiment(
         algorithm.post_train_funcs.append(eval_video_func)
 
     algorithm.train()
+
+
+def contextual_env_distrib_and_reward(
+        vae,
+        sets: typing.List[Set],
+        state_env,
+        renderer,
+        reward_fn_kwargs,
+        use_ground_truth_reward,
+        state_observation_key,
+        latent_observation_key,
+        example_image_key,
+        set_description_key,
+        observation_key,
+        image_observation_key,
+        rig_goal_setter_kwargs,
+        oracle_rig_goal=False,
+):
+    img_env = InsertImageEnv(state_env, renderer=renderer)
+    encoded_env = EncoderWrappedEnv(
+        img_env,
+        vae,
+        step_keys_map={image_observation_key: latent_observation_key},
+    )
+    if oracle_rig_goal:
+        context_env_class = InitStateConditionedContextualEnv
+        goal_distribution_params_distribution = (
+            OracleRIGMeanSetter(
+                sets, vae, example_image_key,
+                env=state_env,
+                renderer=renderer,
+                cycle_for_batch_size_1=True,
+                **rig_goal_setter_kwargs
+            )
+        )
+    else:
+        context_env_class = ContextualEnv
+        goal_distribution_params_distribution = (
+            LatentGoalDictDistributionFromSet(
+                sets, vae, example_image_key, cycle_for_batch_size_1=True,
+            )
+        )
+    if use_ground_truth_reward:
+        reward_fn, unbatched_reward_fn = create_ground_truth_set_rewards_fns(
+            sets,
+            goal_distribution_params_distribution.set_index_key,
+            state_observation_key,
+        )
+    else:
+        reward_fn, unbatched_reward_fn = create_normal_likelihood_reward_fns(
+            latent_observation_key,
+            goal_distribution_params_distribution.mean_key,
+            goal_distribution_params_distribution.covariance_key,
+            reward_fn_kwargs,
+        )
+    set_diagnostics = SetDiagnostics(
+        set_description_key=set_description_key,
+        set_index_key=goal_distribution_params_distribution.set_index_key,
+        observation_key=state_observation_key,
+    )
+    env = context_env_class(
+        encoded_env,
+        context_distribution=goal_distribution_params_distribution,
+        reward_fn=reward_fn,
+        unbatched_reward_fn=unbatched_reward_fn,
+        observation_key=observation_key,
+        contextual_diagnostics_fns=[
+            # goal_diagnostics,
+            set_diagnostics,
+        ],
+        update_env_info_fn=delete_info,
+    )
+    return env, goal_distribution_params_distribution, reward_fn
+
+
+def create_ground_truth_set_rewards_fns(
+        sets,
+        set_index_key,
+        state_observation_key,
+):
+    reward_fn = SetReward(
+        sets=sets,
+        set_index_key=set_index_key,
+        observation_key=state_observation_key,
+    )
+    unbatched_reward_fn = SetReward(
+        sets=sets,
+        set_index_key=set_index_key,
+        observation_key=state_observation_key,
+        batched=False,
+    )
+    return reward_fn, unbatched_reward_fn
+
+
+def create_normal_likelihood_reward_fns(
+        latent_observation_key,
+        mean_key,
+        covariance_key,
+        reward_fn_kwargs,
+):
+    assert mean_key != covariance_key, "probably a typo"
+    reward_fn = NormalLikelihoodRewardFn(
+        observation_key=latent_observation_key,
+        mean_key=mean_key,
+        covariance_key=covariance_key,
+        **reward_fn_kwargs
+    )
+    unbatched_reward_fn = NormalLikelihoodRewardFn(
+        observation_key=latent_observation_key,
+        mean_key=mean_key,
+        covariance_key=covariance_key,
+        batched=False,
+        **reward_fn_kwargs
+    )
+    return reward_fn, unbatched_reward_fn
 
 
 class DisCoVideoSaveFunction:

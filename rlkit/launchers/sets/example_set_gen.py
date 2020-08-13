@@ -17,9 +17,8 @@ def gen_example_sets(env, example_set_variant):
     use_cache = example_set_variant.get('use_cache', False)
 
     if use_cache:
-        from rlkit.misc.asset_loader import local_path_from_s3_or_local_path
-        cache_path = local_path_from_s3_or_local_path(example_set_variant['cache_path'])
-        dataset = np.load(cache_path, allow_pickle=True)[()]
+        cache_path = example_set_variant['cache_path']
+        dataset = np.load(cache_path)[()]
         data_idxs = np.arange(dataset['list_of_waypoints'].shape[1])
         np.random.shuffle(data_idxs)
         data_idxs = data_idxs[:n]
