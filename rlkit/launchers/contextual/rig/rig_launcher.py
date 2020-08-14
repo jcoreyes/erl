@@ -162,7 +162,9 @@ def rig_experiment(
                 state_goal_env.get_contextual_diagnostics
                 diagnostics = state_goal_env.get_contextual_diagnostics
         else:
-            error
+            raise NotImplementedError(
+                'unknown goal sampling method: %s' % goal_sampling_mode
+            )
 
         reward_fn = DistanceRewardFn(
             observation_key=observation_key,
@@ -214,7 +216,7 @@ def rig_experiment(
         **policy_kwargs
     )
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, *args, **kwargs):
         obs = batch['observations']
         next_obs = batch['next_observations']
         context = batch[context_key]
