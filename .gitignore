@@ -19,6 +19,7 @@ examples/tmp.yml
 *.prof
 
 rlkit/launchers/config.py
+rlkit/launchers/conf_private.py
 visualization/grill/config.py
 visualization/grill/config_personal.py
 rlkit/demos/spacemouse/config.py
