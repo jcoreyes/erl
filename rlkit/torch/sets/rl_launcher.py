@@ -649,4 +649,4 @@ class DisCoVideoSaveFunction:
         for i_in_path, d in enumerate(path["full_observations"]):
             latent = d["latent_observation"]
             decoded_img = self.model.decode_one_np(latent)
-            d[self.reconstruction_key] = decoded_img
+            d[self.reconstruction_key] = np.clip(decoded_img, 0, 1)
