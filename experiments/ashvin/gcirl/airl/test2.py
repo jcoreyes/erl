@@ -1,6 +1,9 @@
 from rlkit.launchers.arglauncher import run_variants
 import rlkit.misc.hyperparameter as hyp
-from rlkit.launchers.experiments.goal_distribution.irl_launcher import irl_experiment
+from rlkit.launchers.experiments.goal_distribution.irl_launcher import (
+    irl_experiment,
+    process_args
+)
 from rlkit.launchers.launcher_util import run_experiment
 
 from multiworld.envs.pygame import PickAndPlaceEnv
@@ -9,7 +12,7 @@ if __name__ == '__main__':
     imsize = 200
     variant = dict(
         algo_kwargs=dict(
-            num_epochs=501,
+            num_epochs=1001,
             batch_size=128,
             num_eval_steps_per_epoch=1000,
             num_expl_steps_per_train_loop=1000,
@@ -18,7 +21,7 @@ if __name__ == '__main__':
             eval_epoch_freq=1,
         ),
         max_path_length=100,
-        sac_trainer_kwargs=dict(
+        trainer_kwargs=dict(
             soft_target_tau=1e-3,
             target_update_period=1,
             use_automatic_entropy_tuning=True,
@@ -41,7 +44,7 @@ if __name__ == '__main__':
         observation_key='observation',
         context_keys=[],
         save_env_in_snapshot=False,
-        save_video=False,
+        save_video=True,
         dump_video_kwargs=dict(
             rows=1,
             columns=8,
@@ -49,7 +52,7 @@ if __name__ == '__main__':
             pad_length=0,
             subpad_length=1,
         ),
-        save_video_period=10,
+        save_video_period=50,
         renderer_kwargs=dict(
             width=imsize,
             height=imsize,
@@ -89,4 +92,4 @@ if __name__ == '__main__':
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(irl_experiment, variants, run_id=0)
+    run_variants(irl_experiment, variants, process_args, run_id=0)

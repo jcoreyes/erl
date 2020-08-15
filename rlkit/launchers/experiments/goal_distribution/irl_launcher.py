@@ -17,7 +17,10 @@ from rlkit.envs.contextual.goal_conditioned import (
     IndexIntoAchievedGoal,
 )
 from rlkit.envs.contextual.irl.airl import AIRLTrainer, AIRLRewardFn
-from rlkit.envs.images import EnvRenderer, InsertImagesEnv
+from rlkit.envs.images import (
+    EnvRenderer, InsertImagesEnv, GymEnvRenderer
+)
+from rlkit.envs.images.env_renderer import GymSimRenderer
 from rlkit.launchers.contextual.rig.rig_launcher import get_gym_env
 from rlkit.launchers.contextual.util import (
     get_save_video_function,
@@ -55,7 +58,6 @@ from multiworld.core.gym_to_multi_env import GymToMultiEnv
 
 ENV_PARAMS = {
     'HalfCheetah-v2': {
-        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'env_demo_path': dict(
             path="demos/icml2020/mujoco/hc_action_noise_15.npy",
@@ -70,7 +72,6 @@ ENV_PARAMS = {
         ),
     },
     'Ant-v2': {
-        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'env_demo_path': dict(
             path="demos/icml2020/mujoco/ant_action_noise_15.npy",
@@ -85,7 +86,6 @@ ENV_PARAMS = {
         ),
     },
     'Walker2d-v2': {
-        'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'env_demo_path': dict(
             path="demos/icml2020/mujoco/walker_action_noise_15.npy",
@@ -110,7 +110,6 @@ ENV_PARAMS = {
     'pen-binary-v0': {
         'env_id': 'pen-binary-v0',
         'max_path_length': 200,
-        'sparse_reward': True,
         'env_demo_path': dict(
             path="demos/icml2020/hand/pen2_sparse.npy",
             # path="demos/icml2020/hand/sparsity/railrl_pen-binary-v0_demos.npy",
@@ -133,7 +132,6 @@ ENV_PARAMS = {
     'door-binary-v0': {
         'env_id': 'door-binary-v0',
         'max_path_length': 200,
-        'sparse_reward': True,
         'env_demo_path': dict(
             path="demos/icml2020/hand/door2_sparse.npy",
             # path="demos/icml2020/hand/sparsity/railrl_door-binary-v0_demos.npy",
@@ -154,7 +152,6 @@ ENV_PARAMS = {
     'relocate-binary-v0': {
         'env_id': 'relocate-binary-v0',
         'max_path_length': 200,
-        'sparse_reward': True,
         'env_demo_path': dict(
             path="demos/icml2020/hand/relocate2_sparse.npy",
             # path="demos/icml2020/hand/sparsity/railrl_relocate-binary-v0_demos.npy",
@@ -173,11 +170,37 @@ ENV_PARAMS = {
     },
 }
 
+import collections.abc
+
+def update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
+def process_args(variant):
+    if variant.get("debug", False):
+        variant["algo_kwargs"]=dict(
+            num_epochs=5,
+            batch_size=10,
+            num_eval_steps_per_epoch=10,
+            num_expl_steps_per_train_loop=10,
+            num_trains_per_train_loop=10, #4000,
+            min_num_steps_before_training=10,
+            eval_epoch_freq=1,
+        )
+
+    env_id = variant.get("env_id", None)
+    if env_id:
+        env_params = ENV_PARAMS.get(env_id, {})
+        update(variant, env_params)
 
 def irl_experiment(
         max_path_length,
         contextual_replay_buffer_kwargs,
-        sac_trainer_kwargs,
+        trainer_kwargs,
         algo_kwargs,
         qf_kwargs=None,
         policy_kwargs=None,
@@ -203,6 +226,8 @@ def irl_experiment(
         normalize_env=False,
         add_env_demos=False,
         add_env_offpolicy_data=False,
+        env_demo_path=None,
+        env_offpolicy_data_path=None,
 ):
     if renderer_kwargs is None:
         renderer_kwargs = {}
@@ -230,14 +255,13 @@ def irl_experiment(
         )
         max_path_length=2
 
-
     env_params = ENV_PARAMS.get(env_id, {})
     if add_env_demos:
         demo_paths = path_loader_kwargs.setdefault("demo_paths", [])
-        demo_paths.append(env_params["env_demo_path"])
+        demo_paths.append(env_demo_path)
     if add_env_offpolicy_data:
         demo_paths = path_loader_kwargs.setdefault("demo_paths", [])
-        demo_paths.append(env_params["env_offpolicy_data_path"])
+        demo_paths.append(env_offpolicy_data_path)
 
     reward_fn = AIRLRewardFn(None, context_keys)
 
@@ -251,17 +275,18 @@ def irl_experiment(
             representation_size=0,
             key="no_goal",
         )
+        contextual_reward_fn = None
         env = ContextualEnv(
             env,
             context_distribution=no_goal_distribution,
-            reward_fn=reward_fn,
+            reward_fn=contextual_reward_fn,
             observation_key=observation_key,
             # contextual_diagnostics_fns=[state_diag_fn],
             update_env_info_fn=None,
         )
-        return env, no_goal_distribution, reward_fn
+        return env, no_goal_distribution, contextual_reward_fn
 
-    env, context_distrib, reward_fn = contextual_env_distrib_and_reward(
+    env, context_distrib, _ = contextual_env_distrib_and_reward(
         mode='expl')
     eval_env, eval_context_distrib, _ = contextual_env_distrib_and_reward(
         mode='eval')
@@ -325,7 +350,7 @@ def irl_experiment(
         qf2=qf2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        **sac_trainer_kwargs
+        **trainer_kwargs
     )
     path_loader = path_loader_class(trainer,
         replay_buffer=replay_buffer,
@@ -383,8 +408,9 @@ def irl_experiment(
     algorithm.to(ptu.device)
 
     if save_video:
-        renderer = EnvRenderer(**renderer_kwargs)
-
+        # renderer = GymEnvRenderer(**renderer_kwargs)
+        renderer = GymSimRenderer(**renderer_kwargs)
+        # import ipdb; ipdb.set_trace()
         def add_images(env, state_distribution):
             state_env = env.env
             image_goal_distribution = AddImageDistribution(
@@ -423,11 +449,15 @@ def irl_experiment(
             image_format='CHW',
             save_video_period=save_video_period,
             horizon=max_path_length,
+            keys_to_show=["image_observation",],
             **dump_video_kwargs
         )
         algorithm.post_train_funcs.append(eval_video_func)
 
-        img_expl_env = add_images(env, context_distrib)
+        # img_expl_env = add_images(env, context_distrib)
+        img_expl_env = InsertImagesEnv(env, renderers={
+            'image_observation': renderer,
+        })
         video_path_collector = create_path_collector(img_expl_env,
                                                      expl_policy,
                                                      mode='expl')
@@ -441,6 +471,7 @@ def irl_experiment(
             image_format='CHW',
             save_video_period=save_video_period,
             horizon=max_path_length,
+            keys_to_show=["image_observation",],
             **dump_video_kwargs
         )
         algorithm.post_train_funcs.append(expl_video_func)

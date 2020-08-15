@@ -240,6 +240,14 @@ class SACTrainer(TorchTrainer, LossFunction):
                 'Log Pis',
                 ptu.get_numpy(log_pi),
             ))
+            eval_statistics.update(create_stats_ordered_dict(
+                'rewards',
+                ptu.get_numpy(rewards),
+            ))
+            eval_statistics.update(create_stats_ordered_dict(
+                'terminals',
+                ptu.get_numpy(terminals),
+            ))
             reward_scale = self.reward_scale
             if isinstance(reward_scale, torch.Tensor):
                 reward_scale = ptu.get_numpy(reward_scale)
