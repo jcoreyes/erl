@@ -230,7 +230,7 @@ class Logger(object):
         del self._tabular_prefixes[-1]
         self._tabular_prefix_str = ''.join(self._tabular_prefixes)
 
-    def save_extra_data(self, data, file_name='extra_data.pkl', mode='joblib'):
+    def save_extra_data(self, data, file_name='extra_data', mode='joblib'):
         """
         Data saved here will always override the last entry
 
@@ -320,32 +320,32 @@ class Logger(object):
 
     def _save_params_to_file(self, params, file_name, mode):
         if mode == 'joblib':
-            joblib.dump(params, file_name, compress=3)
+            joblib.dump(params, file_name + ".pkl", compress=3)
         elif mode == 'pickle':
-            pickle.dump(params, open(file_name, "wb"))
+            pickle.dump(params, open(file_name + ".pkl", "wb"))
         elif mode == 'torch':
-            torch.save(params, file_name)
+            torch.save(params, file_name + ".pt")
         else:
             raise ValueError("Invalid mode: {}".format(mode))
 
     def save_itr_params(self, itr, params):
         if self._snapshot_dir:
             if self._snapshot_mode == 'all':
-                file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+                file_name = osp.join(self._snapshot_dir, 'itr_%d' % itr)
                 self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == 'last':
                 # override previous params
-                file_name = osp.join(self._snapshot_dir, 'params.pkl')
+                file_name = osp.join(self._snapshot_dir, 'params')
                 self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == "gap":
                 if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+                    file_name = osp.join(self._snapshot_dir, 'itr_%d' % itr)
                     self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == "gap_and_last":
                 if itr % self._snapshot_gap == 0:
-                    file_name = osp.join(self._snapshot_dir, 'itr_%d.pkl' % itr)
+                    file_name = osp.join(self._snapshot_dir, 'itr_%d' % itr)
                     self._save_params_to_file(params, file_name, mode=self._save_param_mode)
-                file_name = osp.join(self._snapshot_dir, 'params.pkl')
+                file_name = osp.join(self._snapshot_dir, 'params')
                 self._save_params_to_file(params, file_name, mode=self._save_param_mode)
             elif self._snapshot_mode == 'none':
                 pass

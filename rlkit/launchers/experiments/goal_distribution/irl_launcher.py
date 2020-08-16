@@ -32,8 +32,7 @@ from rlkit.torch.networks import ConcatMlp, Mlp
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.sac.sac import SACTrainer
-from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from rlkit.torch.irl.torch_irl_algorithm import TorchIRLAlgorithm
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
 
 from rlkit.misc.asset_loader import (
     load_local_or_remote_file, sync_down_folder, get_absolute_path
@@ -228,6 +227,8 @@ def irl_experiment(
         add_env_offpolicy_data=False,
         env_demo_path=None,
         env_offpolicy_data_path=None,
+        score_fn_class=Mlp,
+        score_fn_kwargs=None,
 ):
     if renderer_kwargs is None:
         renderer_kwargs = {}
@@ -241,6 +242,8 @@ def irl_experiment(
         reward_trainer_kwargs = {}
     if path_loader_kwargs is None:
         path_loader_kwargs = {}
+    if score_fn_kwargs is None:
+        score_fn_kwargs = {}
     if context_keys is None:
         context_keys = []
     if debug:
@@ -360,17 +363,15 @@ def irl_experiment(
     )
     path_loader.load_demos()
 
-    classifier = Mlp(
-        hidden_sizes=[64, 64, ],
-        output_size=1,
+    score_fn = score_fn_class(
         input_size=obs_dim,
-        # output_activation=torch.nn.Sigmoid(),
+        output_size=1,
+        **score_fn_kwargs
     )
-    classifier.to(ptu.device)
-    reward_fn.model = classifier
+    reward_fn.score_fn = score_fn
 
     vice_trainer = AIRLTrainer(
-        classifier,
+        score_fn,
         demo_train_buffer,
         policy,
         **reward_trainer_kwargs
@@ -393,18 +394,22 @@ def irl_experiment(
     eval_path_collector = create_path_collector(eval_env, eval_policy,
                                                 mode='eval')
 
-    algorithm = TorchIRLAlgorithm(
-        trainer=trainer,
+    joint_trainer = JointTrainer(dict(
+        rl=trainer,
+        reward=vice_trainer,
+    ))
+
+    algorithm = TorchBatchRLAlgorithm(
+        trainer=joint_trainer,
         exploration_env=env,
         evaluation_env=eval_env,
         exploration_data_collector=expl_path_collector,
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
         max_path_length=max_path_length,
-        reward_trainer=vice_trainer,
+        # reward_trainer=vice_trainer,
         **algo_kwargs
     )
-
     algorithm.to(ptu.device)
 
     if save_video:

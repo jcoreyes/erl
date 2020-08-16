@@ -133,7 +133,6 @@ class DictToMDPPathLoader:
             )
         self.demo_trajectory_rewards.append(rewards)
         path = path_builder.get_all_stacked()
-        import ipdb; ipdb.set_trace()
         replay_buffer.add_path(path)
         print("path sum rewards", sum(rewards), len(rewards))
 

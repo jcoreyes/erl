@@ -19,9 +19,10 @@ from rlkit.core.loss import LossFunction
 from rlkit.torch import pytorch_util as ptu
 
 import torch
-from torch import optim
+from torch import optim, nn
 import collections
 from collections import OrderedDict
+from rlkit.torch.torch_rl_algorithm import TorchTrainer
 
 Observation = Dict
 Goal = Any
@@ -31,10 +32,10 @@ GoalConditionedDiagnosticsFn = Callable[
 ]
 
 
-class AIRLTrainer(LossFunction):
+class AIRLTrainer(TorchTrainer, LossFunction):
     def __init__(
         self,
-        model,
+        score_fn,
         positives,
         policy,
         lr=1e-3,
@@ -45,7 +46,7 @@ class AIRLTrainer(LossFunction):
     ):
         """positives are a 2D numpy array"""
 
-        self.model = model
+        self.score_fn = score_fn
         self.positives = positives
         self.policy = policy
         self.batch_size = batch_size
@@ -56,7 +57,7 @@ class AIRLTrainer(LossFunction):
         self.softmax = torch.nn.Softmax()
 
         self.lr = lr
-        params = list(self.model.parameters())
+        params = list(self.score_fn.parameters())
         self.optimizer = optim.Adam(params,
             lr=self.lr,
             weight_decay=weight_decay,
@@ -71,17 +72,18 @@ class AIRLTrainer(LossFunction):
 
         positives = self.positives.random_batch(self.batch_size)["observations"]
         P, feature_size = positives.shape
+        positives = ptu.from_numpy(positives)
         negatives = batch['observations']
         N, feature_size = negatives.shape
 
-        X = np.concatenate((positives, negatives))
+        X = torch.cat((positives, negatives))
         Y = np.zeros((P + N, 2))
         Y[:P, 0] = 1
         Y[P:, 1] = 1
 
-        X = ptu.from_numpy(X)
+        # X = ptu.from_numpy(X)
         Y = ptu.from_numpy(Y)
-        y_pred = self.softmax(self.airl_discriminator_logits(X)) # self.model(X) # todo: logsumexp
+        y_pred = self.softmax(self.airl_discriminator_logits(X)) # self.score_fn(X) # todo: logsumexp
 
         # import ipdb; ipdb.set_trace()
         loss = self.loss_fn(y_pred, Y)
@@ -99,14 +101,14 @@ class AIRLTrainer(LossFunction):
         return loss
 
     def airl_discriminator_logits(self, observations):
-        log_p = self.model(observations)
+        log_p = self.score_fn(observations)
         dist = self.policy(observations)
         new_obs_actions, log_pi = dist.sample_and_logprob()
         logits = torch.cat((log_p, log_pi[:, None]), dim=1)
         return logits
 
-    def train(self, batch):
-        self.model.train()
+    def train_from_torch(self, batch):
+        self.score_fn.train()
         self.optimizer.zero_grad()
 
         loss = self.compute_loss(batch, self.epoch, False)
@@ -115,7 +117,7 @@ class AIRLTrainer(LossFunction):
         loss.backward()
         self.optimizer.step()
 
-        self.model.eval()
+        self.score_fn.eval()
         self.compute_loss(batch, self.epoch, True)
 
         self.epoch += 1
@@ -132,7 +134,7 @@ class AIRLTrainer(LossFunction):
             epoch,
             batch,
     ):
-        self.model.eval()
+        self.score_fn.eval()
         loss = self.compute_loss(batch, epoch, True)
 
     def end_epoch(self, epoch):
@@ -145,14 +147,25 @@ class AIRLTrainer(LossFunction):
             stats[k] = np.mean(self.eval_statistics[k])
         return stats
 
+    @property
+    def networks(self):
+        return [
+            self.score_fn,
+        ]
+
+    def get_snapshot(self):
+        return dict(
+            score_fn=self.score_fn,
+        )
+
 
 class AIRLRewardFn(ContextualRewardFn):
     def __init__(
         self,
-        model,
+        score_fn,
         context_keys=None
     ):
-        self.model = model
+        self.score_fn = score_fn
         self.context_keys = context_keys or []
 
     def __call__(self, states, actions, next_states, contexts):
@@ -160,5 +173,19 @@ class AIRLRewardFn(ContextualRewardFn):
         full_obs = [next_states["observation"], ] + contexts
         np_obs = np.concatenate(full_obs, axis=1)
         obs = ptu.from_numpy(np_obs)
-        r = self.model(obs)
+        r = self.score_fn(obs)
         return ptu.get_numpy(r)
+
+
+class GaussianLikelihood(nn.Module):
+    def __init__(self,
+        input_size,
+        output_size=1,
+    ):
+        super().__init__()
+        self.sigma = nn.Parameter(ptu.zeros(input_size, requires_grad=True))
+        self.mu = nn.Parameter(ptu.zeros(input_size, requires_grad=True))
+
+    def __call__(self, states):
+        x = self.sigma * (states - self.mu)
+        return torch.norm(x, dim=1, keepdim=True)
