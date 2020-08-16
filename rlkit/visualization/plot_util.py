@@ -177,13 +177,18 @@ def filter_exps(exps, filter_fn):
             good_exps.append(e)
     return good_exps
 
-def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
+def comparison(*args, **kwargs):
+    fig = plt.figure()
+    ax = plt.axes()
+    return _comparison(ax=ax, *args, **kwargs)
+
+def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
     xlabel=None, default_vary=False, xlim=None, ylim=None,
     print_final=False, print_start=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
     reduce_op=sum, method_order=None, remap_keys={},
     label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
     plot_error_bars=True, plot_seeds=False, overlay=False,
-    formatting_func=None,
+    formatting_func=None, ax=None,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -194,14 +199,14 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             label_suffix = key
         else:
             label_suffix = ""
-            plt.figure(figsize=figsize)
-            plt.title("Vary " + " ".join(vary))
+            # plt.figure(figsize=figsize)
+            ax.set_title("Vary " + " ".join(vary))
         if not bar_plot:
-            plt.ylabel(key)
+            ax.set_ylabel(key)
         if xlim:
-            plt.xlim(xlim)
+            ax.xlim(xlim)
         if ylim:
-            plt.ylim(ylim)
+            ax.ylim(ylim)
 
     y_data = {}
     x_data = {}
@@ -281,14 +286,14 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 color = label_to_color[label_without_vary_prefix]
                 plot_kwargs["color"] = color
             if plot_error_bars:
-                plt.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.1, **plot_kwargs)
-            line, = plt.plot(x, y, label=str(label) + label_suffix, **plot_kwargs)
+                ax.fill_between(x, y-1.96*s, y+1.96*s, alpha=0.1, **plot_kwargs)
+            line, = ax.plot(x, y, label=str(label) + label_suffix, **plot_kwargs)
             lines.append(line)
 
             if plot_seeds:
                 color = line.get_color()
                 for i in range(len(ys)):
-                    plt.plot(x, ys[i, :], color=color, alpha=0.25)
+                    ax.plot(x, ys[i, :], color=color, alpha=0.25)
 
         if print_start:
             print(label, y[0])
@@ -304,8 +309,8 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
                 print(label, i, y[i])
 
     if bar_plot:
-        plt.figure(figsize=figsize)
-        plt.title("Vary " + " ".join(vary))
+        ax.figure(figsize=figsize)
+        ax.title("Vary " + " ".join(vary))
         values = []
         stds = []
         for label in labels:
@@ -315,16 +320,16 @@ def comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figs
             s = np.nanstd(ys, axis=0) / (len(ys) ** 0.5)
             values.append(y[-1])
             stds.append(s[-1])
-        plt.barh(range(len(values)), values, 0.5, xerr=stds)
-        plt.yticks(range(len(values)), labels, )
-        plt.ylim(-0.5, len(values) - 0.5)
-        plt.xlabel(key)
+        ax.barh(range(len(values)), values, 0.5, xerr=stds)
+        ax.yticks(range(len(values)), labels, )
+        ax.ylim(-0.5, len(values) - 0.5)
+        ax.xlabel(key)
 
     if print_legend:
-        plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
+        ax.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
     if formatting_func:
-        plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(formatting_func))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(formatting_func))
 
     if return_data:
         return xs, ys
@@ -345,6 +350,7 @@ def split(exps,
     xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True,
     split_fig=False,
+    num_x_plots=1,
     **kwargs):
 
     split_values = {}
@@ -370,22 +376,30 @@ def split(exps,
         for v in split_values[s]:
             c.append((s, v))
         configurations.append(c)
-    for c in itertools.product(*configurations):
+
+    configs = list(itertools.product(*configurations))
+    num_y_plots = (len(configs) - 1) // num_x_plots + 1
+    new_figsize = (figsize[0] * num_x_plots, figsize[1] * num_y_plots, )
+    fig, axs = plt.subplots(num_y_plots, num_x_plots, figsize=new_figsize)
+    for i, c in enumerate(configs):
         if split_fig:
             plt.figure(figsize=figsize)
         fsplit = lambda exp: all([exp['flat_params'][k] == v for k, v in c]) and f(exp)
         # for exp in exps:
         #     print(fsplit(exp), exp['flat_params'])
         lines = []
+        ax = axs[i]
         for key in keys:
             if print_final or print_max or print_min:
                 print(key, c)
-            lines += comparison(exps, key, vary, f=fsplit, smooth=smooth,
-                figsize=figsize, xlabel=xlabel, default_vary=default_vary, xlim=xlim, ylim=ylim,
-                print_final=print_final, print_max=print_max, print_min=print_min, print_plot=print_plot,
+            lines += _comparison(exps, key, vary, f=fsplit, smooth=smooth,
+                figsize=figsize, xlabel=xlabel, default_vary=default_vary,
+                xlim=xlim, ylim=ylim, print_final=print_final,
+                print_max=print_max, print_min=print_min,
+                print_plot=print_plot, ax=axs[i],
                 **kwargs)
             if print_plot:
-                plt.title(prettify_configuration(c) + " Vary " + " ".join(vary))
+                ax.set_title(prettify_configuration(c) + " Vary " + " ".join(vary))
         if split_fig:
             plt.legend(handles=lines, bbox_to_anchor=(1.0, 0.75))
 
