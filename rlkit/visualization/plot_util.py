@@ -189,6 +189,7 @@ def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, fig
     label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
     plot_error_bars=True, plot_seeds=False, overlay=False,
     formatting_func=None, ax=None,
+    print_on_missing_key=True,
 ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
@@ -247,7 +248,7 @@ def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, fig
                     y = d[key]
                 else:
                     print("not found", key)
-                    print(d.keys())
+                    print(d.keys()) if print_on_missing_key else None
                     continue
 
             is_not_nan = np.logical_not(np.isnan(y))
@@ -271,6 +272,8 @@ def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, fig
     if method_order:
         labels = np.array(labels)[np.array(method_order)]
     for label in labels:
+        if not len(ys):
+            return []
         ys = to_array(y_data[label])
         x = np.nanmean(to_array(x_data[label]), axis=0)
         y = np.nanmean(ys, axis=0)
@@ -344,10 +347,6 @@ def split(exps,
     w="evaluator",
     smooth=identity_fn,
     figsize=(5, 3),
-    suppress_output=False,
-    xlabel=None,
-    default_vary=False,
-    xlim=None, ylim=None,
     print_final=False, print_max=False, print_min=False, print_plot=True,
     split_fig=False,
     num_x_plots=1,
@@ -378,25 +377,29 @@ def split(exps,
         configurations.append(c)
 
     configs = list(itertools.product(*configurations))
-    num_y_plots = (len(configs) - 1) // num_x_plots + 1
+    total_plots = len(configs) * len(keys)
+    num_y_plots = (total_plots - 1) // num_x_plots + 1
     new_figsize = (figsize[0] * num_x_plots, figsize[1] * num_y_plots, )
     fig, axs = plt.subplots(num_y_plots, num_x_plots, figsize=new_figsize)
-    for i, c in enumerate(configs):
+    axs = axs.flatten()
+    i = 0
+    for c in configs:
         if split_fig:
             plt.figure(figsize=figsize)
         fsplit = lambda exp: all([exp['flat_params'][k] == v for k, v in c]) and f(exp)
         # for exp in exps:
         #     print(fsplit(exp), exp['flat_params'])
         lines = []
-        ax = axs[i]
         for key in keys:
+            ax = axs[i]
+            i += 1
             if print_final or print_max or print_min:
                 print(key, c)
             lines += _comparison(exps, key, vary, f=fsplit, smooth=smooth,
-                figsize=figsize, xlabel=xlabel, default_vary=default_vary,
-                xlim=xlim, ylim=ylim, print_final=print_final,
+                figsize=figsize,
+                print_final=print_final,
                 print_max=print_max, print_min=print_min,
-                print_plot=print_plot, ax=axs[i],
+                print_plot=print_plot, ax=ax,
                 **kwargs)
             if print_plot:
                 ax.set_title(prettify_configuration(c) + " Vary " + " ".join(vary))
