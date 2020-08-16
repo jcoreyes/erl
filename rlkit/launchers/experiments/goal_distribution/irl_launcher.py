@@ -229,6 +229,7 @@ def irl_experiment(
         env_offpolicy_data_path=None,
         score_fn_class=Mlp,
         score_fn_kwargs=None,
+        use_oracle_reward=False,
 ):
     if renderer_kwargs is None:
         renderer_kwargs = {}
@@ -332,13 +333,14 @@ def irl_experiment(
     if observation_key not in observation_keys:
         observation_keys.append(observation_key)
 
+    replay_buffer_reward_fn = None if use_oracle_reward else reward_fn
     def create_replay_buffer():
         return ContextualRelabelingReplayBuffer(
             env=env,
             context_keys=context_keys,
             context_distribution=context_distrib,
             sample_context_from_obs_dict_fn=None,
-            reward_fn=reward_fn,
+            reward_fn=replay_buffer_reward_fn,
             post_process_batch_fn=concat_context_to_obs,
             **contextual_replay_buffer_kwargs
         )
