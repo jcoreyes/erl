@@ -19,12 +19,9 @@ from rlkit.core.loss import LossFunction
 from rlkit.torch import pytorch_util as ptu
 
 import torch
-from torch import optim, nn
+from torch import optim
 import collections
 from collections import OrderedDict
-from rlkit.torch.torch_rl_algorithm import TorchTrainer
-
-from rlkit.misc.eval_util import create_stats_ordered_dict
 
 Observation = Dict
 Goal = Any
@@ -34,10 +31,10 @@ GoalConditionedDiagnosticsFn = Callable[
 ]
 
 
-class GAILTrainer(TorchTrainer, LossFunction):
+class VICETrainer(LossFunction):
     def __init__(
         self,
-        score_fn,
+        model,
         positives,
         policy,
         lr=1e-3,
@@ -45,21 +42,28 @@ class GAILTrainer(TorchTrainer, LossFunction):
         batch_size=128,
         data_split=1,
         train_split=0.9,
+        mixup_alpha=0,
     ):
         """positives are a 2D numpy array"""
 
-        self.score_fn = score_fn
+        self.model = model
         self.positives = positives
+        # self.positives[:, :2] = self.positives[:, 2:4] + np.random.randn(1000, 2)/10
         self.policy = policy
+        self.data_N = len(positives) * data_split
+        self.train_N = int(train_split * self.data_N)
         self.batch_size = batch_size
+        self.feature_size = positives.shape[1]
         self.epoch = 0
+        self.mixup_alpha = mixup_alpha
+        self.use_mixup = mixup_alpha > 0
 
         # self.loss_fn = torch.nn.CrossEntropyLoss()
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
-        # self.softmax = torch.nn.Softmax()
+        self.softmax = torch.nn.Softmax()
 
         self.lr = lr
-        params = list(self.score_fn.parameters())
+        params = list(self.model.parameters())
         self.optimizer = optim.Adam(params,
             lr=self.lr,
             weight_decay=weight_decay,
@@ -72,20 +76,28 @@ class GAILTrainer(TorchTrainer, LossFunction):
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
 
-        positives = self.positives.random_batch(self.batch_size)["observations"]
-        P, feature_size = positives.shape
-        positives = ptu.from_numpy(positives)
-        negatives = batch['observations']
-        N, feature_size = negatives.shape
+        if self.use_mixup:
+            lmbda = np.random.beta(self.mixup_alpha, self.mixup_alpha, (self.batch_size, 1))
+            indices = np.random.randint(0, len(batch['observations']), self.batch_size)
+            X1 = batch['observations'][indices, :self.feature_size]
+            X2 = self.get_batch(test)
+            Y1 = np.zeros((self.batch_size, 2))
+            Y2 = np.zeros((self.batch_size, 2))
+            Y1[:, 1] = 1
+            Y2[:, 0] = 1 # example set are positives
+            X = lmbda * X1 + (1 - lmbda) * X2
+            Y = lmbda * Y1 + (1 - lmbda) * Y2
+        else:
+            X = np.zeros((2 * self.batch_size, self.feature_size))
+            Y = np.zeros((2 * self.batch_size, 1))
+            X[:self.batch_size] = batch['observations'][:self.batch_size, :self.feature_size]
+            Y[:self.batch_size] = 0
+            X[self.batch_size:] = self.get_batch(test)
+            Y[self.batch_size:] = 1
 
-        X = torch.cat((positives, negatives))
-        Y = np.zeros((P + N, 1))
-        Y[:P, 0] = 1
-        # Y[P:, 0] = 0
-
-        # X = ptu.from_numpy(X)
+        X = ptu.from_numpy(X)
         Y = ptu.from_numpy(Y)
-        y_pred = self.GAIL_discriminator_logits(X) # self.score_fn(X) # todo: logsumexp
+        y_pred = self.softmax(self.airl_discriminator_logits(X)) # self.model(X) # todo: logsumexp
 
         # import ipdb; ipdb.set_trace()
         loss = self.loss_fn(y_pred, Y)
@@ -96,26 +108,21 @@ class GAILTrainer(TorchTrainer, LossFunction):
         self.eval_statistics[prefix + "tn"].append(((1 - y_pred_class) * (1 - Y)).mean().item())
         self.eval_statistics[prefix + "fn"].append(((1 - y_pred_class) * Y).mean().item())
         self.eval_statistics[prefix + "fp"].append((y_pred_class * (1 - Y)).mean().item())
-        self.eval_statistics.update(create_stats_ordered_dict(
-            "y_pred_positives",
-            ptu.get_numpy(y_pred[:P]),
-        ))
-        self.eval_statistics.update(create_stats_ordered_dict(
-            "y_pred_negatives",
-            ptu.get_numpy(y_pred[P:]),
-        ))
 
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics[prefix + "losses"].append(loss.item())
 
         return loss
 
-    def GAIL_discriminator_logits(self, observations):
-        log_p = self.score_fn(observations)
-        return log_p
+    def airl_discriminator_logits(self, observations):
+        log_p = self.model(observations)
+        dist = self.policy(observations)
+        new_obs_actions, log_pi = dist.sample_and_logprob()
+        logits = torch.cat((log_p, log_pi[:, None]), dim=1)
+        return logits
 
-    def train_from_torch(self, batch):
-        self.score_fn.train()
+    def train(self, batch):
+        self.model.train()
         self.optimizer.zero_grad()
 
         loss = self.compute_loss(batch, self.epoch, False)
@@ -124,7 +131,7 @@ class GAILTrainer(TorchTrainer, LossFunction):
         loss.backward()
         self.optimizer.step()
 
-        self.score_fn.eval()
+        self.model.eval()
         self.compute_loss(batch, self.epoch, True)
 
         self.epoch += 1
@@ -141,7 +148,7 @@ class GAILTrainer(TorchTrainer, LossFunction):
             epoch,
             batch,
     ):
-        self.score_fn.eval()
+        self.model.eval()
         loss = self.compute_loss(batch, epoch, True)
 
     def end_epoch(self, epoch):
@@ -153,46 +160,3 @@ class GAILTrainer(TorchTrainer, LossFunction):
         for k in sorted(self.eval_statistics.keys()):
             stats[k] = np.mean(self.eval_statistics[k])
         return stats
-
-    @property
-    def networks(self):
-        return [
-            self.score_fn,
-        ]
-
-    def get_snapshot(self):
-        return dict(
-            score_fn=self.score_fn,
-        )
-
-
-class GAILRewardFn(ContextualRewardFn):
-    def __init__(
-        self,
-        score_fn,
-        context_keys=None
-    ):
-        self.score_fn = score_fn
-        self.context_keys = context_keys or []
-
-    def __call__(self, states, actions, next_states, contexts):
-        contexts = [contexts[k] for k in self.context_keys]
-        full_obs = [next_states["observation"], ] + contexts
-        np_obs = np.concatenate(full_obs, axis=1)
-        obs = ptu.from_numpy(np_obs)
-        r = self.score_fn(obs)
-        return ptu.get_numpy(r)
-
-
-class GaussianLikelihood(nn.Module):
-    def __init__(self,
-        input_size,
-        output_size=1,
-    ):
-        super().__init__()
-        self.sigma = nn.Parameter(ptu.ones(input_size, requires_grad=True))
-        self.mu = nn.Parameter(ptu.ones(input_size, requires_grad=True))
-
-    def __call__(self, states):
-        x = self.sigma * (states - self.mu)
-        return -torch.norm(x, dim=1, keepdim=True)

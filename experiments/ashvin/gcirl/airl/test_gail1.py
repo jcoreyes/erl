@@ -6,7 +6,7 @@ from rlkit.launchers.experiments.goal_distribution.irl_launcher import (
 )
 from rlkit.launchers.launcher_util import run_experiment
 
-from rlkit.torch.irl.gail import GAILTrainer, GAILRewardFn
+from rlkit.torch.irl.gail_trainer import GAILTrainer, GAILRewardFn
 
 if __name__ == '__main__':
     imsize = 200
