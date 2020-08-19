@@ -62,9 +62,6 @@ if __name__ == '__main__':
             snapshot_gap=50,
             snapshot_mode='gap_and_last',
         ),
-        launcher_config=dict(
-            unpack_variant=True,
-        ),
         reward_trainer_kwargs=dict(
             data_split=0.5,
             train_split=0.5,
@@ -77,6 +74,7 @@ if __name__ == '__main__':
             hidden_sizes=[64, 64, ],
         ),
         launcher_config=dict(
+            unpack_variant=True,
             num_exps_per_instance=1,
             region='us-west-2',
         ),

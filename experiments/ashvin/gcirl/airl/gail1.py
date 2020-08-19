@@ -8,7 +8,7 @@ from rlkit.launchers.launcher_util import run_experiment
 
 from multiworld.envs.pygame import PickAndPlaceEnv
 
-from rlkit.torch.irl.gail_trainer import GAILTrainer, GAILRewardFn
+from rlkit.torch.irl.gail_trainer import GAILTrainer
 
 if __name__ == '__main__':
     imsize = 200
@@ -80,7 +80,6 @@ if __name__ == '__main__':
             num_exps_per_instance=1,
             region='us-west-2',
         ),
-        reward_fn_class=GAILRewardFn,
         reward_trainer_class=GAILTrainer,
     )
 
