@@ -16,7 +16,7 @@ from rlkit.envs.contextual.goal_conditioned import (
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
 )
-from rlkit.envs.contextual.irl.airl import AIRLTrainer, AIRLRewardFn
+from rlkit.torch.irl.airl import AIRLTrainer, AIRLRewardFn
 from rlkit.envs.images import (
     EnvRenderer, InsertImagesEnv, GymEnvRenderer
 )

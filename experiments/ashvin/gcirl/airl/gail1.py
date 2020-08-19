@@ -9,7 +9,7 @@ from rlkit.launchers.launcher_util import run_experiment
 from multiworld.envs.pygame import PickAndPlaceEnv
 
 from rlkit.envs.contextual.irl.airl import AIRLTrainer, AIRLRewardFn
-from rlkit.envs.contextual.irl.gail import GAILTrainer, GAILRewardFn
+from rlkit.torch.irl.gail import GAILTrainer, GAILRewardFn
 
 if __name__ == '__main__':
     imsize = 200
