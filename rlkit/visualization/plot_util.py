@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 import json
 from pprint import pprint
@@ -356,6 +357,7 @@ def split(exps,
     for s in split:
         split_values[s] = set()
     for l in exps:
+        l = copy.deepcopy(l)
         for k in l['flat_params']:
             l['flat_params'][k] = str(l['flat_params'][k])
         if f(l):
@@ -381,7 +383,7 @@ def split(exps,
     num_y_plots = (total_plots - 1) // num_x_plots + 1
     new_figsize = (figsize[0] * num_x_plots, figsize[1] * num_y_plots, )
     fig, axs = plt.subplots(num_y_plots, num_x_plots, figsize=new_figsize)
-    axs = axs.flatten()
+    axs = np.array([axs]).flatten()
     i = 0
     for c in configs:
         if split_fig:

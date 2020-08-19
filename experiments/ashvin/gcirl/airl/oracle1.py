@@ -86,6 +86,7 @@ if __name__ == '__main__':
             "pen-binary-v0",
             "door-binary-v0", "relocate-binary-v0",
         ],
+        'trainer_kwargs.reward_scale': [1, 10],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

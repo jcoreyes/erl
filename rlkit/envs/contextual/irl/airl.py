@@ -183,9 +183,9 @@ class GaussianLikelihood(nn.Module):
         output_size=1,
     ):
         super().__init__()
-        self.sigma = nn.Parameter(ptu.zeros(input_size, requires_grad=True))
-        self.mu = nn.Parameter(ptu.zeros(input_size, requires_grad=True))
+        self.sigma = nn.Parameter(ptu.ones(input_size, requires_grad=True))
+        self.mu = nn.Parameter(ptu.ones(input_size, requires_grad=True))
 
     def __call__(self, states):
         x = self.sigma * (states - self.mu)
-        return torch.norm(x, dim=1, keepdim=True)
+        return -torch.norm(x, dim=1, keepdim=True)

@@ -76,6 +76,10 @@ if __name__ == '__main__':
         score_fn_kwargs=dict(
             hidden_sizes=[64, 64, ],
         ),
+        launcher_config=dict(
+            num_exps_per_instance=1,
+            region='us-west-2',
+        ),
     )
 
     search_space = {
@@ -85,6 +89,7 @@ if __name__ == '__main__':
             "pen-binary-v0",
             "door-binary-v0", "relocate-binary-v0",
         ],
+        'trainer_kwargs.reward_scale': [1, 10],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(

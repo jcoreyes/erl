@@ -85,8 +85,10 @@ if __name__ == '__main__':
             'HalfCheetah-v2', 'Ant-v2',
             'Walker2d-v2',
             "pen-binary-v0",
-            "door-binary-v0", "relocate-binary-v0",
+            "door-binary-v0",
+            "relocate-binary-v0",
         ],
+        'trainer_kwargs.reward_scale': [1, 10, 100],
     }
 
     sweeper = hyp.DeterministicHyperparameterSweeper(
