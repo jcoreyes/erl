@@ -7,7 +7,7 @@ from rlkit.launchers.experiments.goal_distribution.irl_launcher import (
 from rlkit.launchers.launcher_util import run_experiment
 
 from multiworld.envs.pygame import PickAndPlaceEnv
-from rlkit.torch.irl.airl import GaussianLikelihood
+from rlkit.torch.irl.irl_trainer import GaussianLikelihood
 
 if __name__ == '__main__':
     imsize = 200

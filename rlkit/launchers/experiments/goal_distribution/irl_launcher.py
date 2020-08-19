@@ -16,7 +16,7 @@ from rlkit.envs.contextual.goal_conditioned import (
     GoalConditionedDiagnosticsToContextualDiagnostics,
     IndexIntoAchievedGoal,
 )
-from rlkit.torch.irl.airl import AIRLTrainer, AIRLRewardFn
+from rlkit.torch.irl.irl_trainer import IRLTrainer, IRLRewardFn
 from rlkit.envs.images import (
     EnvRenderer, InsertImagesEnv, GymEnvRenderer
 )
@@ -230,8 +230,8 @@ def irl_experiment(
         score_fn_class=Mlp,
         score_fn_kwargs=None,
         use_oracle_reward=False,
-        reward_fn_class=AIRLRewardFn,
-        reward_trainer_class=AIRLTrainer,
+        reward_fn_class=IRLRewardFn,
+        reward_trainer_class=IRLTrainer,
 ):
     if renderer_kwargs is None:
         renderer_kwargs = {}

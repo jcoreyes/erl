@@ -32,7 +32,7 @@ GoalConditionedDiagnosticsFn = Callable[
 ]
 
 
-class AIRLTrainer(TorchTrainer, LossFunction):
+class IRLTrainer(TorchTrainer, LossFunction):
     def __init__(
         self,
         score_fn,
@@ -159,7 +159,7 @@ class AIRLTrainer(TorchTrainer, LossFunction):
         )
 
 
-class AIRLRewardFn(ContextualRewardFn):
+class IRLRewardFn(ContextualRewardFn):
     def __init__(
         self,
         score_fn,
