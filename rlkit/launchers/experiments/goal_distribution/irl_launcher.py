@@ -230,6 +230,8 @@ def irl_experiment(
         score_fn_class=Mlp,
         score_fn_kwargs=None,
         use_oracle_reward=False,
+        reward_fn_class=AIRLRewardFn,
+        reward_trainer_class=AIRLTrainer,
 ):
     if renderer_kwargs is None:
         renderer_kwargs = {}
@@ -267,7 +269,7 @@ def irl_experiment(
         demo_paths = path_loader_kwargs.setdefault("demo_paths", [])
         demo_paths.append(env_offpolicy_data_path)
 
-    reward_fn = AIRLRewardFn(None, context_keys)
+    reward_fn = reward_fn_class(None, context_keys)
 
     def contextual_env_distrib_and_reward(mode='expl'):
         assert mode in ['expl', 'eval']
@@ -372,7 +374,7 @@ def irl_experiment(
     )
     reward_fn.score_fn = score_fn
 
-    vice_trainer = AIRLTrainer(
+    vice_trainer = reward_trainer_class(
         score_fn,
         demo_train_buffer,
         policy,
