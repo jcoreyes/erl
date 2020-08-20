@@ -213,16 +213,18 @@ def dump_video(
         for i_in_path, d in enumerate(path['full_observations']):
             imgs_to_stack = [d[k] for k in keys_to_show]
             imgs_to_stack += get_extra_imgs(path, i_in_path, env)
-            l.append(
-                combine_images_into_grid(
-                    imgs_to_stack,
-                    max_num_cols=num_columns_per_rollout,
-                    imwidth=imsize,
-                    imheight=imsize,
-                    unnormalize=True,
-                    **combine_img_kwargs
-                )
+            grid_img = combine_images_into_grid(
+                imgs_to_stack,
+                max_num_cols=num_columns_per_rollout,
+                imwidth=imsize,
+                imheight=imsize,
+                unnormalize=True,
+                **combine_img_kwargs
             )
+            l.append(grid_img)
+        if len(l) < horizon:
+            frozen_img = l[-1] / 2
+            l += [frozen_img] * (horizon - len(l))
         frames += l
 
         if dirname_to_save_images:

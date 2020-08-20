@@ -48,7 +48,7 @@ class DictToMDPPathLoader:
             replay_buffer,
             demo_train_buffer,
             demo_test_buffer,
-            demo_paths=[], # list of dicts
+            demo_paths=None, # list of dicts
             demo_train_split=0.9,
             demo_data_split=1,
             add_demos_to_replay_buffer=True,
@@ -75,7 +75,7 @@ class DictToMDPPathLoader:
         self.demo_train_buffer = demo_train_buffer
         self.demo_test_buffer = demo_test_buffer
 
-        self.demo_paths = demo_paths
+        self.demo_paths = [] if demo_paths is None else demo_paths
 
         self.bc_num_pretrain_steps = bc_num_pretrain_steps
         self.q_num_pretrain_steps = q_num_pretrain_steps
@@ -248,7 +248,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             obs_key,
             load_terminals,
             **kwargs)
-        self.model = load_encoder(model_path)
+        if model_path:
+            self.model = load_encoder(model_path)
         self.normalize = normalize
         self.env = env
         self.do_preprocess = do_preprocess
@@ -298,6 +299,13 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
 
         return observation
 
+    def preprocess_array_obs(self, observation):
+        new_observations = []
+        for i in range(len(observation)):
+            new_observations.append(dict(observation=observation[i]))
+            # observation[i]["no_goal"] = np.zeros((0, ))
+        return new_observations
+
     def encode(self, obs):
         if self.normalize:
             return ptu.get_numpy(self.model.encode(ptu.from_numpy(obs) / 255.0))
@@ -313,8 +321,8 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             traj_obs = self.preprocess(path["observations"])
             next_traj_obs = self.preprocess(path["next_observations"])
         else:
-            traj_obs = self.env.encode(path["observations"])
-            next_traj_obs = self.env.encode(path["next_observations"])
+            traj_obs = self.preprocess_array_obs(path["observations"])
+            next_traj_obs = self.preprocess_array_obs(path["observations"])
 
         for i in range(H):
             ob = traj_obs[i]
