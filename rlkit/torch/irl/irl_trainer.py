@@ -83,22 +83,24 @@ class IRLTrainer(TorchTrainer, LossFunction):
 
         # X = ptu.from_numpy(X)
         Y = ptu.from_numpy(Y)
-        y_pred = self.softmax(self.airl_discriminator_logits(X)) # self.score_fn(X) # todo: logsumexp
+        y_pred = self.softmax(self.airl_discriminator_logits(X)) # todo: logsumexp
 
-        # import ipdb; ipdb.set_trace()
         loss = self.loss_fn(y_pred, Y)
 
         y_pred_class = (y_pred > 0).float()
-
-        self.eval_statistics[prefix + "tp"].append((y_pred_class * Y).mean().item())
-        self.eval_statistics[prefix + "tn"].append(((1 - y_pred_class) * (1 - Y)).mean().item())
-        self.eval_statistics[prefix + "fn"].append(((1 - y_pred_class) * Y).mean().item())
-        self.eval_statistics[prefix + "fp"].append((y_pred_class * (1 - Y)).mean().item())
+        self.update_with_classification_stats(y_pred_class, Y, prefix)
 
         self.eval_statistics['epoch'] = epoch
         self.eval_statistics[prefix + "losses"].append(loss.item())
 
         return loss
+
+    def update_with_classification_stats(self, y_pred, y_label, prefix):
+        stats = self.eval_statistics
+        stats[prefix + "tp"].append((y_pred * y_label).mean().item())
+        stats[prefix + "tn"].append(((1 - y_pred) * (1 - y_label)).mean().item())
+        stats[prefix + "fn"].append(((1 - y_pred) * y_label).mean().item())
+        stats[prefix + "fp"].append((y_pred * (1 - y_label)).mean().item())
 
     def airl_discriminator_logits(self, observations):
         log_p = self.score_fn(observations)

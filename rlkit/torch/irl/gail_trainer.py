@@ -52,17 +52,13 @@ class GAILTrainer(IRLTrainer):
 
         # X = ptu.from_numpy(X)
         Y = ptu.from_numpy(Y)
-        y_pred = self.GAIL_discriminator_logits(X) # self.score_fn(X) # todo: logsumexp
+        y_pred = self.GAIL_discriminator_logits(X)
 
-        # import ipdb; ipdb.set_trace()
         loss = self.loss_fn(y_pred, Y)
 
         y_pred_class = (y_pred > 0).float()
 
-        self.eval_statistics[prefix + "tp"].append((y_pred_class * Y).mean().item())
-        self.eval_statistics[prefix + "tn"].append(((1 - y_pred_class) * (1 - Y)).mean().item())
-        self.eval_statistics[prefix + "fn"].append(((1 - y_pred_class) * Y).mean().item())
-        self.eval_statistics[prefix + "fp"].append((y_pred_class * (1 - Y)).mean().item())
+        self.update_with_classification_stats(y_pred_class, Y, prefix)
         self.eval_statistics.update(create_stats_ordered_dict(
             "y_pred_positives",
             ptu.get_numpy(y_pred[:P]),
