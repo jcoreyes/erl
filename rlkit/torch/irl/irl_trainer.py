@@ -179,7 +179,9 @@ class IRLRewardFn(ContextualRewardFn):
         return ptu.get_numpy(r)
 
 
-class GaussianLikelihood(nn.Module):
+### Structured reward function definitions below
+
+class MahalanobisReward(nn.Module):
     def __init__(self,
         input_size,
         output_size=1,

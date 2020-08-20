@@ -7,7 +7,7 @@ from rlkit.launchers.experiments.goal_distribution.irl_launcher import (
 from rlkit.launchers.launcher_util import run_experiment
 
 from multiworld.envs.pygame import PickAndPlaceEnv
-from rlkit.torch.irl.irl_trainer import GaussianLikelihood
+from rlkit.torch.irl.irl_trainer import MahalanobisReward
 
 if __name__ == '__main__':
     imsize = 200
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         path_loader_kwargs=dict(
             do_preprocess=False,
         ),
-        score_fn_class=GaussianLikelihood,
+        score_fn_class=MahalanobisReward,
         score_fn_kwargs=dict(
         ),
     )
