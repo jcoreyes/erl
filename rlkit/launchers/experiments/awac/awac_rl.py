@@ -22,10 +22,7 @@ from rlkit.visualization.video import save_paths, VideoSaveFunction
 from multiworld.core.flat_goal_env import FlatGoalEnv
 from multiworld.core.image_env import ImageEnv
 from multiworld.core.gym_to_multi_env import GymToMultiEnv
-
-from rlkit.launchers.experiments.ashvin.rfeatures.encoder_wrapped_env import EncoderWrappedEnv
-from rlkit.envs.encoder_wrappers import VQVAEWrappedEnv
-from rlkit.launchers.experiments.ashvin.rfeatures.rfeatures_model import TimestepPredictionModel
+from rlkit.misc.hyperparameter import recursive_dictionary_update
 
 import torch
 import numpy as np
@@ -176,7 +173,6 @@ def resume(variant):
 
     algo.train()
 
-
 def process_args(variant):
     if variant.get("debug", False):
         variant['max_path_length'] = 50
@@ -190,6 +186,10 @@ def process_args(variant):
         variant['trainer_kwargs']['q_num_pretrain1_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain1_steps', 0))
         variant['trainer_kwargs']['q_num_pretrain2_steps'] = min(10, variant['trainer_kwargs'].get('q_num_pretrain2_steps', 0))
 
+    env_id = variant.get("env_id", None)
+    if env_id:
+        env_params = ENV_PARAMS.get(env_id, {})
+        recursive_dictionary_update(variant, env_params)
 
 def experiment(variant):
     if variant.get("pretrained_algorithm_path", False):
@@ -198,8 +198,6 @@ def experiment(variant):
 
     normalize_env = variant.get('normalize_env', True)
     env_id = variant.get('env_id', None)
-    env_params = ENV_PARAMS.get(env_id, {})
-    variant.update(env_params)
     env_class = variant.get('env_class', None)
     env_kwargs = variant.get('env_kwargs', {})
 

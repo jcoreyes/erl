@@ -183,15 +183,18 @@ def comparison(*args, **kwargs):
     ax = plt.axes()
     return _comparison(ax=ax, *args, **kwargs)
 
-def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, figsize=(5, 3.5),
-    xlabel=None, default_vary=False, xlim=None, ylim=None,
-    print_final=False, print_start=False, print_max=False, print_min=False, print_plot=True, print_legend=True,
-    reduce_op=sum, method_order=None, remap_keys={},
-    label_to_color=None, return_data=False, bar_plot=False, label_include_key=True,
-    plot_error_bars=True, plot_seeds=False, overlay=False,
-    formatting_func=None, ax=None,
-    print_on_missing_key=True,
-):
+def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn,
+        figsize=(5, 3.5),
+        xlabel=None, default_vary=False, xlim=None, ylim=None,
+        print_final=False, print_start=False, print_max=False, print_min=False,
+        print_plot=True, print_legend=True,
+        reduce_op=sum, method_order=None, remap_keys={},
+        label_to_color=None, return_data=False, bar_plot=False,
+        label_include_key=True,
+        plot_error_bars=True, plot_seeds=False, overlay=False,
+        formatting_func=None, ax=None,
+        print_on_missing_key=True,
+    ):
     """exps is result of core.load_exps_data
     key is (what we might think is) the effect variable
     vary is (what we might think is) the causal variable
@@ -341,17 +344,21 @@ def _comparison(exps, key, vary = ["expdir"], f=true_fn, smooth=identity_fn, fig
     return lines
 
 def split(exps,
-    keys,
-    vary = "expdir",
-    split=[],
-    f=true_fn,
-    w="evaluator",
-    smooth=identity_fn,
-    figsize=(5, 3),
-    print_final=False, print_max=False, print_min=False, print_plot=True,
-    split_fig=False,
-    num_x_plots=1,
-    **kwargs):
+        keys,
+        vary = "expdir",
+        split=[],
+        f=true_fn,
+        w="evaluator",
+        smooth=identity_fn,
+        figsize=(5, 3),
+        print_final=False, print_max=False, print_min=False, print_plot=True,
+        split_fig=False,
+        default_vary=None,
+        num_x_plots=1,
+        **kwargs
+    ):
+
+    default_vary = {} if default_vary is None else default_vary
 
     split_values = {}
     for s in split:

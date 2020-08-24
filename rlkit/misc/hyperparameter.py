@@ -9,7 +9,7 @@ import itertools
 from typing import List
 
 import rlkit.pythonplusplus as ppp
-
+import collections.abc
 
 class Hyperparameter(metaclass=abc.ABCMeta):
     def __init__(self, name):
@@ -227,3 +227,13 @@ class DeterministicSweeperCombiner(object):
             sweeper.iterate_hyperparameters()
             for sweeper in self._sweepers
         )
+
+
+def recursive_dictionary_update(d, u):
+    """Recursive d.update(u) for dictionaries d, u"""
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = recursive_dictionary_update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d

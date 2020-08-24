@@ -33,6 +33,7 @@ from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.sac.sac import SACTrainer
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
+from rlkit.misc.hyperparameter import recursive_dictionary_update
 
 from rlkit.misc.asset_loader import (
     load_local_or_remote_file, sync_down_folder, get_absolute_path
@@ -169,16 +170,6 @@ ENV_PARAMS = {
     },
 }
 
-import collections.abc
-
-def update(d, u):
-    for k, v in u.items():
-        if isinstance(v, collections.abc.Mapping):
-            d[k] = update(d.get(k, {}), v)
-        else:
-            d[k] = v
-    return d
-
 def process_args(variant):
     if variant.get("debug", False):
         variant["algo_kwargs"]=dict(
@@ -194,7 +185,7 @@ def process_args(variant):
     env_id = variant.get("env_id", None)
     if env_id:
         env_params = ENV_PARAMS.get(env_id, {})
-        update(variant, env_params)
+        recursive_dictionary_update(variant, env_params)
 
 def irl_experiment(
         max_path_length,
