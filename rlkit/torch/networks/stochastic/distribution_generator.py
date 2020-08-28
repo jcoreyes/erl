@@ -11,6 +11,7 @@ from rlkit.torch.distributions import (
     GaussianMixtureFull as GaussianMixtureFullDistribution,
     MultivariateDiagonalNormal,
     TanhNormal,
+    IndependentLaplace,
 )
 from rlkit.torch.networks.basic import MultiInputSequential
 
@@ -68,6 +69,13 @@ class IndependentGenerator(ModuleToDistributionGenerator):
             distribution,
             reinterpreted_batch_ndims=self.reinterpreted_batch_ndims,
         )
+
+
+class IndependentLaplaceGen(ModuleToDistributionGenerator):
+    def forward(self, *input):
+        mean, log_std = super().forward(*input)
+        std = log_std.exp()
+        return IndependentLaplace(mean, std)
 
 
 class GaussianMixture(ModuleToDistributionGenerator):
