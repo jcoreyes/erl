@@ -43,4 +43,3 @@ class JointPathCollector(PathCollector):
         for name, collector in self.path_collectors.items():
             paths[name] = collector.get_epoch_paths()
         return paths
-

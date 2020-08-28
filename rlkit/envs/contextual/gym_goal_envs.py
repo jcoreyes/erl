@@ -74,7 +74,7 @@ class GenericGoalConditionedContextualDiagnostics(ContextualDiagnosticsFn):
             difference = achieved - goal
             distance = np.linalg.norm(difference, axis=-1)
             stat_to_lists['distance'].append(distance)
-            stat_to_lists['success'].append(distance < self._success_threshold)
+            stat_to_lists['success'].append(distance <= self._success_threshold)
         for stat_name, stat_list in stat_to_lists.items():
             statistics.update(create_stats_ordered_dict(
                 stat_name,

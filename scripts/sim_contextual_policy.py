@@ -20,11 +20,15 @@ def simulate_policy(args):
         policy = data['policy']
     elif 'evaluation/policy' in data:
         policy = data['evaluation/policy']
+    else:
+        policy = data['evaluation/hard_init/policy']
 
     if 'env' in data:
         env = data['env']
     elif 'evaluation/env' in data:
         env = data['evaluation/env']
+    else:
+        env = data['evaluation/hard_init/env']
 
     if isinstance(env, RemoteRolloutEnv):
         env = env._wrapped_env
@@ -51,7 +55,10 @@ def simulate_policy(args):
             if torch.isnan(param).any():
                 print(name)
     qf = data['trainer/qf1']
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
+    observation_key = data.get('evaluation/observation_key', 'observation')
+    context_keys = data.get('evaluation/context_keys_for_policy', ['context'])
+    context_keys = data.get('evaluation/hard_init/context_keys_for_policy')
 
     while True:
         paths.append(contextual_rollout(
@@ -59,8 +66,8 @@ def simulate_policy(args):
             policy,
             max_path_length=args.H,
             render=not args.hide,
-            observation_key=data.get('evaluation/observation_key', 'observation'),
-            context_keys_for_policy=data.get('evaluation/context_keys_for_policy', ['context']),
+            observation_key=observation_key,
+            context_keys_for_policy=context_keys,
             # context_keys_for_policy=['state_desired_goal'],
         ))
         if hasattr(env, "log_diagnostics"):

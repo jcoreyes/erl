@@ -67,7 +67,7 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
         pass
 
 
-class JointTrainer(TorchTrainer):
+class JointTrainer(Trainer):
     """
     Combine multiple trainers.
 
@@ -100,10 +100,9 @@ class JointTrainer(TorchTrainer):
             raise ValueError("Need at least one trainer")
         self._trainers = trainers
 
-    def train_from_torch(self, batch):
-        # TODO: support different trainers having different data batches
+    def train(self, np_batch):
         for trainer in self._trainers.values():
-            trainer.train_from_torch(batch)
+            trainer.train(np_batch)
 
     @property
     def networks(self):

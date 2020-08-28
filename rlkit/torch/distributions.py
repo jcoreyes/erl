@@ -4,6 +4,7 @@ Add custom distributions in addition to th existing ones
 import torch
 from torch.distributions import Categorical, OneHotCategorical, kl_divergence
 from torch.distributions import Normal as TorchNormal
+from torch.distributions import Laplace
 from torch.distributions import Beta as TorchBeta
 from torch.distributions import Distribution as TorchDistribution
 from torch.distributions import Bernoulli as TorchBernoulli
@@ -147,6 +148,38 @@ class Beta(Distribution, TorchBeta):
             ptu.get_numpy(self.entropy()),
         ))
         return stats
+
+
+class IndependentLaplace(TorchDistributionWrapper):
+    from torch.distributions import constraints
+    arg_constraints = {'loc': constraints.real, 'scale': constraints.positive}
+
+    def __init__(self, loc, scale_diag):
+        dist = Independent(Laplace(loc, scale_diag), 1)
+        super().__init__(dist)
+
+    def get_diagnostics(self):
+        stats = OrderedDict()
+        stats.update(create_stats_ordered_dict(
+            'mean',
+            ptu.get_numpy(self.mean),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'std',
+            ptu.get_numpy(self.distribution.stddev),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'log_std',
+            ptu.get_numpy(torch.log(self.distribution.stddev)),
+        ))
+        stats.update(create_stats_ordered_dict(
+            'entropy',
+            ptu.get_numpy(self.entropy()),
+        ))
+        return stats
+
+    def __repr__(self):
+        return self.distribution.base_dist.__repr__()
 
 
 class MultivariateDiagonalNormal(TorchDistributionWrapper):

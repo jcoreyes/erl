@@ -7,6 +7,17 @@ from collections import deque
 import numpy as np
 
 
+def create_schedule(version, x_values=None, y_values=None):
+    """Helper factory method."""
+    if version == 'piecewise_linear':
+        return PiecewiseLinearSchedule(
+            x_values,
+            y_values,
+        )
+    else:
+        raise NotImplementedError()
+
+
 class ScalarSchedule(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_value(self, t):
