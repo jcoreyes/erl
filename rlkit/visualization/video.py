@@ -62,7 +62,7 @@ class VideoSaveFunction:
             )
         else:
             expl_paths = algo.expl_data_collector.get_epoch_paths()
-        if epoch % self.save_period == 0 or epoch == algo.num_epochs:
+        if epoch % self.save_period == 0 or epoch >= algo.num_epochs - 1:
             filename = osp.join(self.logdir,
                                 'video_{epoch}_vae.mp4'.format(epoch=epoch))
             dump_paths(self.env,
@@ -80,7 +80,7 @@ class VideoSaveFunction:
             )
         else:
             eval_paths = algo.eval_data_collector.get_epoch_paths()
-        if epoch % self.save_period == 0 or epoch == algo.num_epochs:
+        if epoch % self.save_period == 0 or epoch >= algo.num_epochs - 1:
             filename = osp.join(self.logdir,
                                 'video_{epoch}_env.mp4'.format(epoch=epoch))
             dump_paths(self.env,
@@ -322,7 +322,11 @@ def dump_paths(
     H = num_imgs * imheight  # imsize
     W = imwidth  # imsize
 
-    rows = min(rows, int(len(paths) / columns))
+    if len(paths) < rows * columns:
+        columns = min(columns, len(paths))
+        rows = max(min(rows, int(len(paths) / columns)), 1)
+    else:
+        rows = min(rows, int(len(paths) / columns))
     N = rows * columns
     for i in range(N):
         start = time.time()
