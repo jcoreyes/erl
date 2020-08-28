@@ -41,3 +41,19 @@ class GymEnvRenderer(EnvRenderer):
         return env.render(
             mode='rgb_array', width=self.width, height=self.height
         )
+
+
+class GymSimRenderer(EnvRenderer):
+    def _create_image(self, env):
+        if not self._camera_is_initialized and self._init_camera is not None:
+            env.initialize_camera(self._init_camera)
+            self._camera_is_initialized = True
+
+        return self._get_image(env, self.width, self.height, camera_name=None)
+
+    def _get_image(self, env, width=84, height=84, camera_name=None):
+        return env.sim.render(
+            width=width,
+            height=height,
+            camera_name=camera_name,
+        )[::-1,:,:]

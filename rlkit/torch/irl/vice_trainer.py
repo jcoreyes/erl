@@ -160,21 +160,3 @@ class VICETrainer(LossFunction):
         for k in sorted(self.eval_statistics.keys()):
             stats[k] = np.mean(self.eval_statistics[k])
         return stats
-
-
-class VICERewardFn(ContextualRewardFn):
-    def __init__(
-        self,
-        model,
-        context_keys=None
-    ):
-        self.model = model
-        self.context_keys = context_keys or []
-
-    def __call__(self, states, actions, next_states, contexts):
-        contexts = [contexts[k] for k in self.context_keys]
-        full_obs = [next_states["observation"], ] + contexts
-        np_obs = np.concatenate(full_obs, axis=1)
-        obs = ptu.from_numpy(np_obs)
-        r = self.model(obs)
-        return ptu.get_numpy(r)
