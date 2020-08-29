@@ -15,8 +15,8 @@ from multiworld.envs.mujoco.cameras import (
     sawyer_init_camera_zoomed_in,
     sawyer_pick_and_place_camera,
 )
-from multiworld.envs.mujoco.classic_mujoco.hopper import \
-    HopperFullPositionGoalEnv
+# from multiworld.envs.mujoco.classic_mujoco.hopper import \
+    # HopperFullPositionGoalEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_hook import SawyerDoorHookEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place import \
     (
