@@ -3,16 +3,16 @@ from typing import List, Union
 
 import numpy as np
 
-from railrl.envs.contextual.contextual_env import (
+from rlkit.envs.contextual.contextual_env import (
     ContextualDiagnosticsFn,
     Path,
     Context,
     Diagnostics,
 )
-from railrl.launchers.experiments.vitchyr.probabilistic_goal_reaching.env import (
+from rlkit.launchers.experiments.vitchyr.probabilistic_goal_reaching.env import (
     NormalizeAntFullPositionGoalEnv
 )
-from railrl.misc.eval_util import create_stats_ordered_dict
+from rlkit.misc.eval_util import create_stats_ordered_dict
 
 
 class AntFullPositionGoalEnvDiagnostics(ContextualDiagnosticsFn):

@@ -4,9 +4,9 @@ from collections import OrderedDict
 from typing import Iterable
 
 import numpy as np
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.torch_rl_algorithm import TorchTrainer
+from rlkit.misc.eval_util import create_stats_ordered_dict
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from torch import nn
 
 
@@ -36,7 +36,7 @@ class GenerativeGoalDynamicsModelTrainer(TorchTrainer):
         next_obs = batch[self._next_obs_key]
         next_goal = self.state_to_goal(next_obs)
 
-        # from railrl.torch.pgr.dynamics_model import EnsembleToGaussian
+        # from rlkit.torch.pgr.dynamics_model import EnsembleToGaussian
         # if isinstance(self.model, EnsembleToGaussian):
         #     print("TODO: probably want to train differently")
         dist = self.model(obs, action)

@@ -3,12 +3,12 @@ import torch
 from torch.distributions.kl import kl_divergence
 from torch.distributions import Bernoulli
 
-import railrl.torch.pytorch_util as ptu
-from railrl.envs.images import InsertImagesEnv, Renderer
-from railrl.envs.images.plot_renderer import (
+import rlkit.torch.pytorch_util as ptu
+from rlkit.envs.images import InsertImagesEnv, Renderer
+from rlkit.envs.images.plot_renderer import (
     ScrollingPlotRenderer,
 )
-from railrl.torch.disentanglement.networks import DisentangledMlpQf
+from rlkit.torch.disentanglement.networks import DisentangledMlpQf
 
 
 class DynamicsModelEnvRenderer(Renderer):

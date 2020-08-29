@@ -8,8 +8,8 @@ from matplotlib.ticker import ScalarFormatter
 from torch import optim
 from torch import nn
 
-import railrl.samplers.rollout_functions as rf
-import railrl.torch.pytorch_util as ptu
+import rlkit.samplers.rollout_functions as rf
+import rlkit.torch.pytorch_util as ptu
 from multiworld.envs.mujoco.cameras import (
     sawyer_door_env_camera_v0,
     sawyer_init_camera_zoomed_in,
@@ -28,17 +28,17 @@ from multiworld.envs.mujoco.classic_mujoco.ant import (
     AntFullPositionGoalEnv,
 )
 from multiworld.envs.pygame import PickAndPlaceEnv
-from railrl.core.logging import add_prefix
-from railrl.data_management.contextual_replay_buffer import (
+from rlkit.core.logging import add_prefix
+from rlkit.data_management.contextual_replay_buffer import (
     ContextualRelabelingReplayBuffer,
     RemapKeyFn,
 )
-from railrl.envs.contextual import (
+from rlkit.envs.contextual import (
     ContextualEnv, ContextualRewardFn,
     delete_info,
 )
-from railrl.envs.contextual.contextual_env import batchify
-from railrl.envs.contextual.goal_conditioned import (
+from rlkit.envs.contextual.contextual_env import batchify
+from rlkit.envs.contextual.goal_conditioned import (
     AddImageDistribution,
     GoalConditionedDiagnosticsToContextualDiagnostics,
     GoalDictDistributionFromMultitaskEnv,
@@ -48,63 +48,63 @@ from railrl.envs.contextual.goal_conditioned import (
     IndexIntoAchievedGoal,
     NegativeL2Distance,
 )
-from railrl.envs.contextual.gym_goal_envs import (
+from rlkit.envs.contextual.gym_goal_envs import (
     GoalDictDistributionFromGymGoalEnv,
     GenericGoalConditionedContextualDiagnostics,
 )
-from railrl.envs.images import EnvRenderer, GymEnvRenderer
-from railrl.launchers.contextual.util import (
+from rlkit.envs.images import EnvRenderer, GymEnvRenderer
+from rlkit.launchers.contextual.util import (
     get_save_video_function,
     get_gym_env,
 )
-from railrl.launchers.experiments.vitchyr.probabilistic_goal_reaching.diagnostics import (
+from rlkit.launchers.experiments.vitchyr.probabilistic_goal_reaching.diagnostics import (
     AntFullPositionGoalEnvDiagnostics,
     SawyerPickAndPlaceEnvAchievedFromObs,
     HopperFullPositionGoalEnvDiagnostics,
 )
-from railrl.launchers.experiments.vitchyr.probabilistic_goal_reaching.env import \
+from rlkit.launchers.experiments.vitchyr.probabilistic_goal_reaching.env import \
     NormalizeAntFullPositionGoalEnv
-from railrl.launchers.experiments.vitchyr.probabilistic_goal_reaching.stochastic_env import \
+from rlkit.launchers.experiments.vitchyr.probabilistic_goal_reaching.stochastic_env import \
     NoisyAction
-from railrl.launchers.experiments.vitchyr.probabilistic_goal_reaching.visualize import (
+from rlkit.launchers.experiments.vitchyr.probabilistic_goal_reaching.visualize import (
     DynamicsModelEnvRenderer, InsertDebugImagesEnv,
     DynamicNumberEnvRenderer,
     DiscountModelRenderer,
     ProductRenderer,
     ValueRenderer,
 )
-from railrl.launchers.rl_exp_launcher_util import create_exploration_policy
-from railrl.misc import eval_util
-from railrl.misc.ml_util import create_schedule
-from railrl.samplers.data_collector.contextual_path_collector import (
+from rlkit.launchers.rl_exp_launcher_util import create_exploration_policy
+from rlkit.misc import eval_util
+from rlkit.misc.ml_util import create_schedule
+from rlkit.samplers.data_collector.contextual_path_collector import (
     ContextualPathCollector
 )
-from railrl.samplers.data_collector.joint_path_collector import \
+from rlkit.samplers.data_collector.joint_path_collector import \
     JointPathCollector
-from railrl.torch.distributions import (
+from rlkit.torch.distributions import (
     Distribution, MultivariateDiagonalNormal,
     IndependentLaplace,
 )
-from railrl.torch.networks.basic import MultiInputSequential, Concat
-from railrl.torch.networks.mlp import MultiHeadedMlp, ConcatMlp, ParallelMlp
-from railrl.torch.networks.stochastic.distribution_generator import (
+from rlkit.torch.networks.basic import MultiInputSequential, Concat
+from rlkit.torch.networks.mlp import MultiHeadedMlp, ConcatMlp, ParallelMlp
+from rlkit.torch.networks.stochastic.distribution_generator import (
     TanhGaussian, DistributionGenerator,
     Gaussian,
     IndependentLaplaceGen,
 )
-from railrl.torch.pgr.dynamics_model import EnsembleToGaussian
-from railrl.torch.pgr.pgr import PGRTrainer
-from railrl.torch.sac.policies import (
+from rlkit.torch.pgr.dynamics_model import EnsembleToGaussian
+from rlkit.torch.pgr.pgr import PGRTrainer
+from rlkit.torch.sac.policies import (
     MakeDeterministic,
     PolicyFromDistributionGenerator,
 )
-from railrl.torch.supervised_learning.discount_model_trainer import (
+from rlkit.torch.supervised_learning.discount_model_trainer import (
     DiscountModelTrainer
 )
-from railrl.torch.supervised_learning.dynamics_model_trainer import (
+from rlkit.torch.supervised_learning.dynamics_model_trainer import (
     GenerativeGoalDynamicsModelTrainer
 )
-from railrl.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm, JointTrainer
 
 
 class ProbabilisticGoalRewardFn(ContextualRewardFn):

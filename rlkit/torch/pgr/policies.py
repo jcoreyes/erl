@@ -2,10 +2,10 @@ import numpy as np
 import torch
 from torch import nn as nn
 
-from railrl.policies.base import ExplorationPolicy, Policy
-from railrl.torch.core import eval_np
-from railrl.torch.distributions import TanhNormal
-from railrl.torch.networks import Mlp, CNN
+from rlkit.policies.base import ExplorationPolicy, Policy
+from rlkit.torch.core import eval_np
+from rlkit.torch.distributions import TanhNormal
+from rlkit.torch.networks import Mlp, CNN
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20

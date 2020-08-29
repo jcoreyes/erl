@@ -5,16 +5,16 @@ from numbers import Number
 import numpy as np
 import torch
 import torch.optim as optim
-from railrl.core.loss import LossFunction
+from rlkit.core.loss import LossFunction
 from torch.distributions import Bernoulli
 from torch.distributions.kl import kl_divergence
 from torch import nn as nn
 
-import railrl.torch.pytorch_util as ptu
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.misc.ml_util import ScalarSchedule, ConstantSchedule
-from railrl.torch.torch_rl_algorithm import TorchTrainer
-from railrl.core.logging import add_prefix
+import rlkit.torch.pytorch_util as ptu
+from rlkit.misc.eval_util import create_stats_ordered_dict
+from rlkit.misc.ml_util import ScalarSchedule, ConstantSchedule
+from rlkit.torch.torch_rl_algorithm import TorchTrainer
+from rlkit.core.logging import add_prefix
 
 PGRLosses = namedtuple(
     'SACLosses',
