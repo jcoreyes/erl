@@ -1,6 +1,6 @@
 import numpy as np
-from railrl.torch.core import PyTorchModule
-from railrl.torch import pytorch_util as ptu
+from rlkit.torch.core import PyTorchModule
+from rlkit.torch import pytorch_util as ptu
 from torch import nn as nn
 import torch
 

@@ -1,5 +1,5 @@
-from railrl.torch.distributions import MultivariateDiagonalNormal
-from railrl.torch.networks.stochastic.distribution_generator import (
+from rlkit.torch.distributions import MultivariateDiagonalNormal
+from rlkit.torch.networks.stochastic.distribution_generator import (
     DistributionGenerator
 )
 
