@@ -83,25 +83,6 @@ class VQ_VAETrainer(ConvVAETrainer, LossFunction):
             self.test_batch(epoch, dataset.random_batch(self.batch_size))
         self.eval_statistics["test/epoch_duration"].append(time.time() - start_time)
 
-
-    # def compute_loss(self, batch, epoch=-1, test=False):
-    #     prefix = "test/" if test else "train/"
-    #     beta = float(self.beta_schedule.get_value(epoch))
-    #     obs = batch[self.key_to_reconstruct]
-    #     vq_loss, kle, perplexity, vq_recon, vae_recon, vq_recon_error, vae_recon_error = self.model.compute_loss(obs)
-    #     loss = vq_loss + vq_recon_error + vae_recon_error + beta * kle
-
-    #     self.eval_statistics['epoch'] = epoch
-    #     self.eval_statistics[prefix + "losses"].append(loss.item())
-    #     self.eval_statistics[prefix + "VQ Recon Error"].append(vq_recon_error.item())
-    #     self.eval_statistics[prefix + "VAE Recon Error"].append(vae_recon_error.item())
-    #     self.eval_statistics[prefix + "kle"].append(kle.item())
-    #     self.eval_statistics[prefix + "VQ Loss"].append(vq_loss.item())
-    #     self.eval_statistics[prefix + "Perplexity"].append(perplexity.item())
-    #     self.eval_data[prefix + "last_batch"] = (obs, vq_recon.detach())
-
-    #     return loss
-
     def compute_loss(self, batch, epoch=-1, test=False):
         prefix = "test/" if test else "train/"
         beta = float(self.beta_schedule.get_value(epoch))
