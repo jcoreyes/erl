@@ -116,7 +116,6 @@ if __name__ == "__main__":
             training_mode='train',
             testing_mode='test',
             reward_params=dict(
-                #epsilon=9,
                 type="state_hand_distance"
             ),
             observation_key="latent_achieved_goal", #'latent_observation',
@@ -133,7 +132,7 @@ if __name__ == "__main__":
                 x_values=(0, 250),
                 y_values=(0, 100),
             ),
-            num_epochs=501,
+            num_epochs=1001,
             dump_skew_debug_plots=False,
             decoder_activation='sigmoid',
             use_linear_dynamics=False,
@@ -141,12 +140,7 @@ if __name__ == "__main__":
                 N=1000,
                 n_random_steps=2,
                 test_p=.9,
-                # dataset_path=['lego_green.npy', 'puck_gold.npy', 'puck_white.npy', 'bear.npy', 'puck_black.npy', 'star.npy',
-                # 'cat.npy', 'lego_yellow.npy', 'puck_purple1.npy', 'dog.npy', 'puck_purple.npy', 'towel_purple.npy', 'puck_blue1.npy',
-                # 'puck_red1.npy', 'towel_red.npy', 'lego_blue.npy', 'puck_blue.npy','puck_red.npy',
-                # 'puck_green.npy', 'jeans.npy', 'lego_red.npy', 'towel_brown.npy'],
-                # dataset_path='/home/ashvin/data/pusher_pucks/all_data_flat.npy',
-                dataset_path='/home/ashvin/data/sasha/demos/4dofimages.npy',
+                dataset_path='/home/ashvin/data/sasha/demos/4dof_complex_objects_images.npy',
                 #dataset_path={'train': '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy',
                 #            'test': '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'},
                 augment_data=False,
@@ -167,7 +161,7 @@ if __name__ == "__main__":
             vae_kwargs=dict(
                 input_channels=3,
                 imsize=48,
-                #decay=0.0, #0.99
+                decay=0, #0.99
                 #num_hiddens=256,
                 #num_residual_layers=4,
                 #num_residual_hiddens=128,
@@ -220,4 +214,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=20)
+    run_variants(grill_her_td3_offpolicy_online_vae_full_experiment, variants, run_id=24)

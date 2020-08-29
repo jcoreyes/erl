@@ -7,9 +7,9 @@ import torch
 from torch import nn
 from typing import Iterable
 
-from railrl.misc.eval_util import create_stats_ordered_dict
-from railrl.torch import pytorch_util as ptu
-from railrl.torch.torch_rl_algorithm import TorchTrainer
+from rlkit.misc.eval_util import create_stats_ordered_dict
+from rlkit.torch import pytorch_util as ptu
+from rlkit.torch.torch_rl_algorithm import TorchTrainer
 
 
 class DiscountModelTrainer(TorchTrainer):

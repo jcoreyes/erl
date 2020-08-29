@@ -604,7 +604,6 @@ def awac_rig_experiment(
             state_env,
             **reward_kwargs
         )
-
         env = ContextualEnv(
             encoded_env,
             context_distribution=latent_goal_distribution,

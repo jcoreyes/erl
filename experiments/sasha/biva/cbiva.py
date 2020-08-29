@@ -11,7 +11,7 @@ from rlkit.torch.grill.cvae_experiments import (
 from rlkit.misc.ml_util import PiecewiseLinearSchedule, ConstantSchedule
 from multiworld.envs.pygame.multiobject_pygame_env import Multiobj2DEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_subset import SawyerMultiobjectEnv
-from rlkit.torch.vae.biva_pytorch.biva.model.conditional_deepvae import ConditionalBIVA
+from rlkit.torch.vae.biva.model.conditional_deepvae import ConditionalBIVA
 from rlkit.torch.vae.biva_trainer import ConditionalBIVATrainer
 from rlkit.data_management.online_conditional_vae_replay_buffer import \
         OnlineConditionalVaeRelabelingBuffer

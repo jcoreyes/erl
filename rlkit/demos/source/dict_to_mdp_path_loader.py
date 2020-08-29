@@ -20,20 +20,9 @@ from rlkit.data_management.path_builder import PathBuilder
 
 from rlkit.launchers.config import LOCAL_LOG_DIR, AWS_S3_PATH
 
-# import matplotlib
-# matplotlib.use('TkAgg')
-# import matplotlib.pyplot as plt
-
 from rlkit.core import logger
 
 import glob
-
-def load_encoder(encoder_file):
-    encoder = load_local_or_remote_file(encoder_file)
-    # TEMP #
-    #encoder.representation_size = encoder.discrete_size * encoder.embedding_dim
-    # TEMP #
-    return encoder
 
 
 class DictToMDPPathLoader:
@@ -208,6 +197,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             demo_train_buffer,
             demo_test_buffer,
             model_path=None,
+            reward_fn=None,
             env=None,
             demo_paths=[], # list of dicts
             normalize=False,
@@ -248,23 +238,14 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             obs_key,
             load_terminals,
             **kwargs)
-        if model_path:
-            self.model = load_encoder(model_path)
+        self.model = load_local_or_remote_file(model_path)
+        self.reward_fn = reward_fn
+
         self.normalize = normalize
         self.env = env
         self.do_preprocess = do_preprocess
 
         print("ZEROING OUT GOALS")
-
-    def resize_img(self, obs):
-        from torchvision.transforms import Resize
-        from PIL import Image
-        resize = Resize((48, 48), interpolation=Image.NEAREST)
-
-        obs = obs.reshape(84, 84, 3) * 255.0
-        obs = Image.fromarray(obs, mode='RGB')
-        obs = np.array(resize(obs))
-        return obs.flatten() / 255.0
 
     def preprocess(self, observation):
         if not self.do_preprocess:
@@ -329,16 +310,6 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             next_ob = next_traj_obs[i]
             action = path["actions"][i]
 
-            # #temp fix#
-            # ob['state_desired_goal'] = np.zeros_like(ob['state_desired_goal'])
-            # ob['latent_desired_goal'] = np.zeros_like(ob['latent_desired_goal'])
-
-            # next_ob['state_desired_goal'] = np.zeros_like(next_ob['state_desired_goal'])
-            # next_ob['latent_desired_goal'] = np.zeros_like(next_ob['latent_desired_goal'])
-
-            # action[3] /= 5
-            # #temp fix#
-
             reward = path["rewards"][i]
             terminal = path["terminals"][i]
             if not self.load_terminals:
@@ -346,8 +317,7 @@ class EncoderDictToMDPPathLoader(DictToMDPPathLoader):
             agent_info = path["agent_infos"][i]
             env_info = path["env_infos"][i]
             if self.recompute_reward:
-                #reward = self.env.compute_rewards(action, path["next_observations"][i])
-                reward = self.env._compute_reward(ob, action, next_ob, context=next_ob)
+                reward = self.reward_fn(ob, action, next_ob, next_ob)
 
             reward = np.array([reward]).flatten()
             rewards.append(reward)

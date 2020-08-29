@@ -20,13 +20,24 @@ demo_paths_4=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs
 
 demo_paths_5=[dict(path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True, data_split=0.25,)]
 
+three_dof_demos=[dict(path='sasha/complex_obj/3dof_complex_objects_demos_0.pkl',obs_dict=True, is_demo=True),
+                dict(path='sasha/complex_obj/3dof_complex_objects_demos_1.pkl',obs_dict=True, is_demo=True),
+                dict(path='sasha/complex_obj/3dof_complex_objects_demos_2.pkl',obs_dict=True, is_demo=True)]
+
+quat_dict={'mug': [0, 0, 0, 1],
+        'long_sofa': [0, 0, 0, 1],
+        'camera': [-1, 0, 0, 0],
+        'grill_trash_can': [0, 0, 0, 1],
+        'beer_bottle': [0, 0, 1, 1]}
+
+object_list = ['mug', 'long_sofa', 'camera', 'grill_trash_can', 'beer_bottle']
 
 if __name__ == "__main__":
     variant = dict(
         imsize=48,
         env_class=SawyerRigMultiobjV0,
         env_kwargs=dict(
-            object_subset='',
+            DoF=3,
         ),
         policy_class=GaussianPolicy,
         policy_kwargs=dict(
@@ -53,7 +64,7 @@ if __name__ == "__main__":
 
             bc_num_pretrain_steps=0,
             q_num_pretrain1_steps=0,
-            q_num_pretrain2_steps=25000, #25000 maybe try 35000
+            q_num_pretrain2_steps=25000, #25000
             policy_weight_decay=1e-4,
             q_weight_decay=0,
 
@@ -100,44 +111,14 @@ if __name__ == "__main__":
             pad_color=0,
         ),
 
+        #pretrained_vae_path="itr_0.pkl",
         pretrained_vae_path="sasha/complex_obj/vae.pkl",
-        presampled_goals_path="sasha/complex_obj/zero_goals.pkl",
+        presampled_goals_path="sasha/complex_obj/3dof_lego_goals.pkl",
+        #presampled_goals_path="sasha/complex_obj/zero_goals.pkl",
 
         path_loader_class=EncoderDictToMDPPathLoader,
         path_loader_kwargs=dict(
             recompute_reward=True,
-            demo_paths=[
-                dict(
-                    path='sasha/complex_obj/4dof_complex_objects_demos_0.pkl',
-                    obs_dict=True,
-                    is_demo=True,
-                    #data_split=0.01,
-                ),
-                dict(
-                    path='sasha/complex_obj/4dof_complex_objects_demos_1.pkl',
-                    obs_dict=True,
-                    is_demo=True,
-                    #data_split=0.01,
-                ),
-                dict(
-                    path='sasha/complex_obj/4dof_complex_objects_demos_2.pkl',
-                    obs_dict=True,
-                    is_demo=True,
-                    #data_split=0.01,
-                ),
-                # dict(
-                #     path='sasha/complex_obj/4dof_complex_objects_demos_3.pkl',
-                #     obs_dict=True,
-                #     is_demo=True,
-                #     #data_split=0.5,
-                # ),
-                # dict(
-                #     path='sasha/complex_obj/4dof_complex_objects_demos_4.pkl',
-                #     obs_dict=True,
-                #     is_demo=True,
-                #     #data_split=0.01,
-                # ),
-            ],
         ),
 
         renderer_kwargs=dict(
@@ -161,6 +142,7 @@ if __name__ == "__main__":
 
         launcher_config=dict(
             unpack_variant=True,
+            region='us-east-2',
         ),
 
 
@@ -202,9 +184,12 @@ if __name__ == "__main__":
     )
 
     search_space = {
+        #Things to change for dof: demos, presampled_goals, DoF
         "seed": range(2),
-        'path_loader_kwargs.demo_paths': [demo_paths_1, demo_paths_2, demo_paths_3, demo_paths_4, demo_paths_5],
-        'trainer_kwargs.beta': [1],
+        'path_loader_kwargs.demo_paths': [three_dof_demos],
+        'env_kwargs.quat_dict': [quat_dict, {}],
+        'env_kwargs.object_subset': [object_list]
+        'trainer_kwargs.beta': [0.5, 1],
         'policy_kwargs.min_log_std': [-6],
         'trainer_kwargs.awr_weight': [1.0],
         'trainer_kwargs.awr_use_mle_for_vf': [True, ],
@@ -223,4 +208,4 @@ if __name__ == "__main__":
     for variant in sweeper.iterate_hyperparameters():
         variants.append(variant)
 
-    run_variants(awac_rig_experiment, variants, run_id=4)
+    run_variants(awac_rig_experiment, variants, run_id=30)
