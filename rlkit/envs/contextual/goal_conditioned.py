@@ -120,8 +120,7 @@ class PresampledPathDistribution(DictDistribution):
             datapath,
     ):
         self._presampled_goals = load_local_or_remote_file(datapath)
-        self._num_presampled_goals = self._presampled_goals[0].shape[0]
-
+        self._num_presampled_goals = self._presampled_goals[list(self._presampled_goals)[0]].shape[0]
         self._set_spaces()
 
     def sample(self, batch_size: int):

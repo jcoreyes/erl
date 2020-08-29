@@ -28,10 +28,10 @@ from rlkit.torch.core import np_to_pytorch_batch
 import collections
 import time
 
-from rlkit.torch.vae.biva_pytorch.biva.evaluation.freebits import FreeBits
-from rlkit.torch.vae.biva_pytorch.biva.model import \
+from rlkit.torch.vae.biva.evaluation.freebits import FreeBits
+from rlkit.torch.vae.biva.model import \
     DeepVae, get_deep_vae_mnist, get_deep_vae_cifar, VaeStage, LvaeStage, BivaStage
-from rlkit.torch.vae.biva_pytorch.biva.utils import \
+from rlkit.torch.vae.biva.utils import \
     LowerBoundedExponentialLR, training_step, test_step, summary2logger, save_model, load_model, \
     sample_model, DiscretizedMixtureLogits, batch_reduce, log_sum_exp, detach_to_device
 #from booster.utils import EMA
