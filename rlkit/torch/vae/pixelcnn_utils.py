@@ -63,7 +63,6 @@ def load_cond_latent_block(filepath):
 
 
 def data_loaders(train_data, val_data, batch_size):
-
     train_loader = DataLoader(train_data,
                               batch_size=batch_size,
                               shuffle=True,

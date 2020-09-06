@@ -6,13 +6,17 @@ from rlkit.launchers.arglauncher import run_variants
 if __name__ == "__main__":
     variant = dict(
         vqvae_path="sasha/vqvaes/best_256_vae.pkl",
-        batch_size=32,
-        epochs=100,
-        num_workers=4,
+        num_epochs=101,
+        batch_size=64,
         n_layers=15,
-        learning_rate=3e-4,
-        # max_batches_per_iteration=5,
+        trainer_kwargs=dict(
+            lr=3e-4,
+        ),
+        model_kwargs=dict(
+            n_layers=15,
+        ),
 
+        cached_dataset_path="sasha/vqvaes/pixelcnn_data.npy", # ignores data_kwargs if used
         train_data_kwargs=dict(
             path='sasha/vqvaes/gr_train_complex_obj_images.npy',
             # max_traj=100,

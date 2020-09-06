@@ -82,7 +82,6 @@ class InfiniteWeightedRandomSampler(Sampler):
         return 2 ** 62
 
 
-
 class BatchLoader:
     def random_batch(self, batch_size):
         raise NotImplementedError
@@ -105,6 +104,10 @@ class InfiniteBatchLoader(BatchLoader):
             self.iterator = iter(self.dataset_loader)
             batch = next(self.iterator)
 
-        for key in batch:
-            batch[key] = batch[key].float().to(ptu.device)
+        if isinstance(batch, torch.Tensor):
+            batch = batch.to(ptu.device)
+        elif isinstance(batch, dict):
+            for key in batch:
+                batch[key] = batch[key].float().to(ptu.device)
+
         return batch
