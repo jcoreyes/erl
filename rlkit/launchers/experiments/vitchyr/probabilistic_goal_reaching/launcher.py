@@ -345,8 +345,8 @@ class StateToGoalFn(object):
             return state[..., :2]
         elif self.env_type == AntFullPositionGoalEnv:
             return state[..., :15]
-        elif self.env_type == HopperFullPositionGoalEnv:
-            return state[..., :6]
+        # elif self.env_type == HopperFullPositionGoalEnv:
+        #     return state[..., :6]
         elif self.env_type == SawyerPickAndPlaceEnvYZ:
             return state[..., 1:]
         else:
@@ -430,7 +430,7 @@ def probabilistic_goal_reaching_experiment(
         isinstance(stub_env, FetchEnv)
         or isinstance(stub_env, AntXYGoalEnv)
         or isinstance(stub_env, AntFullPositionGoalEnv)
-        or isinstance(stub_env, HopperFullPositionGoalEnv)
+        # or isinstance(stub_env, HopperFullPositionGoalEnv)
     )
     is_ant_full_pos = isinstance(stub_env, AntFullPositionGoalEnv)
 
@@ -516,14 +516,14 @@ def probabilistic_goal_reaching_experiment(
                     normalize_env=normalize_env,
                 )
             )
-        if isinstance(stub_env, HopperFullPositionGoalEnv):
-            diag_fns.append(
-                HopperFullPositionGoalEnvDiagnostics(
-                    desired_goal_key=desired_goal_key,
-                    achieved_goal_key=achieved_goal_key,
-                    success_threshold=success_threshold,
-                )
-            )
+        # if isinstance(stub_env, HopperFullPositionGoalEnv):
+        #     diag_fns.append(
+        #         HopperFullPositionGoalEnvDiagnostics(
+        #             desired_goal_key=desired_goal_key,
+        #             achieved_goal_key=achieved_goal_key,
+        #             success_threshold=success_threshold,
+        #         )
+        #     )
         achieved_from_ob = IndexIntoAchievedGoal(
             achieved_goal_key,
         )
@@ -589,7 +589,7 @@ def probabilistic_goal_reaching_experiment(
         )
     policy = create_policy()
 
-    def concat_context_to_obs(batch):
+    def concat_context_to_obs(batch, replay_buffer, obs_dict, next_obs_dict, new_contexts):
         obs = batch['observations']
         next_obs = batch['next_observations']
         batch['original_observations'] = obs
