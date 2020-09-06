@@ -1,3 +1,4 @@
+from rlkit.envs.pygame import pnp_util
 from rlkit.torch.sets import set_creation
 from multiworld.envs.pygame import PickAndPlaceEnv
 from rlkit.envs.images import EnvRenderer
@@ -10,7 +11,7 @@ def main():
         boundary_dist=4,
         ball_radius=1.5,
         object_radius=1.,
-        cursor_visual_radius=1.5,
+        ball_visual_radius=1.5,
         object_visual_radius=1.,
         min_grab_distance=1.,
         walls=None,
@@ -38,7 +39,7 @@ def main():
     renderer = EnvRenderer(
         output_image_format='CHW',
     )
-    sets = set_creation.sample_pnp_sets(
+    sets = pnp_util.sample_pnp_sets(
         env,
         renderer,
         num_samples_per_set=128,
