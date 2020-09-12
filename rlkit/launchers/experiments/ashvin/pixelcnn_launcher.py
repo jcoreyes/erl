@@ -74,7 +74,7 @@ def train_pixelcnn(
         data = load_local_or_remote_file(path)
         data = data.item()
 
-        data["observations"] = data["observations"].reshape(-1, 50, imlength)
+        data["observations"] = data["observations"]
 
         all_data = []
 
@@ -84,7 +84,7 @@ def train_pixelcnn(
         # vqvae.to('cpu') # 3X faster on a GPU
         for i in tqdm(range(n)):
             obs = ptu.from_numpy(data["observations"][i] / 255.0 )
-            latent = vqvae.encode(obs, cont=False).reshape(-1, 50, discrete_size)
+            latent = vqvae.encode(obs, cont=False)
             all_data.append(latent)
 
         encodings = ptu.get_numpy(torch.cat(all_data, dim=0))
