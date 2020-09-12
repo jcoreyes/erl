@@ -1,5 +1,5 @@
 import sys
-sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
+# sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
 import pickle
 import numpy as np
@@ -37,7 +37,7 @@ class BlockDataset(Dataset):
 
 class LatentBlockDataset(Dataset):
     """
-    Loads latent block dataset 
+    Loads latent block dataset
     """
 
     def __init__(self, file_path, train=True, transform=None, test_p=0.9):
@@ -72,7 +72,7 @@ class LatentBlockDataset(Dataset):
 
 class ConditionalLatentBlockDataset(Dataset):
     """
-    Loads latent block dataset 
+    Loads latent block dataset
     """
 
     def __init__(self, file_path, train=True, transform=None, test_p=0.9):
@@ -84,7 +84,7 @@ class ConditionalLatentBlockDataset(Dataset):
             self.data = data['train']
         else:
             self.data = data['test']
-        
+
         self.size = self.data.shape[0]
         self.traj_length = self.data.shape[1]
         print('Done loading latent block data')
@@ -106,6 +106,6 @@ class ConditionalLatentBlockDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
         return img
-    
+
     def __len__(self):
         return self.size * self.traj_length
