@@ -193,21 +193,21 @@ if __name__ == "__main__":
 
     n_seeds = 1
     mode = 'local'
-    exp_name = '20-09-14-local-' + __file__.split('/')[-1].split('.')[0].replace('_', '-')
+    exp_name = '20-09-15-local-' + __file__.split('/')[-1].split('.')[0].replace('_', '-')
     print('exp_name', exp_name)
 
-    if mode == 'local':
-        variant['algo_kwargs'] = dict(
-            batch_size=32,
-            num_epochs=10,
-            num_eval_steps_per_epoch=100,
-            num_expl_steps_per_train_loop=100,
-            num_trains_per_train_loop=100,
-            min_num_steps_before_training=100,
-        )
-        variant['save_video'] = True
-        variant['save_video_kwargs']['rows'] = 1
-        variant['save_video_kwargs']['save_video_period'] = 1
+    # if mode == 'local':
+    #     variant['algo_kwargs'] = dict(
+    #         batch_size=32,
+    #         num_epochs=10,
+    #         num_eval_steps_per_epoch=100,
+    #         num_expl_steps_per_train_loop=100,
+    #         num_trains_per_train_loop=100,
+    #         min_num_steps_before_training=100,
+    #     )
+    #     variant['save_video'] = True
+    #     variant['save_video_kwargs']['rows'] = 1
+    #     variant['save_video_kwargs']['save_video_period'] = 1
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         if (
