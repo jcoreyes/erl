@@ -30,7 +30,6 @@ class PGRTrainer(TorchTrainer, LossFunction):
     LEARNED_DISCOUNT = 'learned'
     PRIOR_DISCOUNT = 'prior'
     COMPUTED_DISCOUNT = 'computed_from_qr'
-    DROP_FROM_PRIOR_TO_LEARNED = 'drop_from_prior_to_learned'
 
     def __init__(
             self,
@@ -48,7 +47,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
             discount=0.99,
             prior_discount_weight_schedule: Optional[ScalarSchedule] = None,
             multiply_bootstrap_by_prior_discount=False,
-            multiple_discount_by_discount_prior=False,
+            upper_bound_discount_by_prior=False,
             reward_scale=1.0,
             reward_tracking_momentum=0.999,
             auto_init_qf_bias=False,
@@ -79,6 +78,11 @@ class PGRTrainer(TorchTrainer, LossFunction):
         :param prior_discount_weight_schedule:
         At epoch i, use the discount
             discount = c_i * prior_discount + (1-c_i) posterior_discount
+        :param multiply_bootstrap_by_prior_discount:
+        If true, when you compute the discount prior, always multiply it by the
+        prior discount in addition to the normal prior discount.
+        :param upper_bound_discount_by_prior:
+        Always upper-bound the discount by the prior.
         :param reward_scale:
         :param reward_tracking_momentum:
         :param policy_lr:
@@ -107,7 +111,6 @@ class PGRTrainer(TorchTrainer, LossFunction):
             self.PRIOR_DISCOUNT,
             self.LEARNED_DISCOUNT,
             self.COMPUTED_DISCOUNT,
-            self.DROP_FROM_PRIOR_TO_LEARNED,
         }:
             raise ValueError("Invalid discount type: {}".format(
                 discount_type
@@ -148,8 +151,8 @@ class PGRTrainer(TorchTrainer, LossFunction):
         self._multiply_bootstrap_by_prior_discount = (
             multiply_bootstrap_by_prior_discount
         )
-        self._multiply_discount_by_discount_prior = (
-            multiple_discount_by_discount_prior
+        self._upper_bound_discount_by_prior = (
+            upper_bound_discount_by_prior
         )
         self._auto_init_qf_bias = auto_init_qf_bias
         self._current_epoch = 0
@@ -307,10 +310,11 @@ class PGRTrainer(TorchTrainer, LossFunction):
                 actions,
                 next_obs,
             ))
+        # Use the unscaled bootstrap values/rewards so that the weight on the
+        # the Q-value/reward has the correct scale relative to the other terms
         raw_discount = self.get_discount_factor(
-            bootstrap_value,
-            self.reward_scale * rewards,
-            # alpha * log_pi,
+            bootstrap_value / self.reward_scale,
+            rewards,
             obs,
             actions,
         )
@@ -320,7 +324,9 @@ class PGRTrainer(TorchTrainer, LossFunction):
         )
         q_target = self._compute_target_q_value(
             discount,
-            rewards, terminals, bootstrap_value,
+            rewards,
+            terminals,
+            bootstrap_value,
             eval_statistics,
             return_statistics,
         )
@@ -483,13 +489,12 @@ class PGRTrainer(TorchTrainer, LossFunction):
         return q_target
 
     def get_discount_factor(
-            self, bootstrap_value, scaled_reward, obs, action
+            self, bootstrap_value, reward, obs, action
     ):
         prior_discount = self.discount  # rename for readability
         if self.discount_type == self.PRIOR_DISCOUNT:
             discount = prior_discount
         elif self.discount_type == self.LEARNED_DISCOUNT:
-            # assume the goal is in the obs
             discount = self.discount_model(obs, action)
         elif self.discount_type == self.COMPUTED_DISCOUNT:
             # large reward or tiny prior ==> small current discount
@@ -498,19 +503,16 @@ class PGRTrainer(TorchTrainer, LossFunction):
             scaled_log_pi = self.get_alpha() * log_pi
             discount = torch.sigmoid(
                 bootstrap_value
-                - scaled_reward
+                - reward
                 + scaled_log_pi
                 + np.log(prior_discount / (1 - prior_discount))
             )
-        elif self.discount_type == self.DROP_FROM_PRIOR_TO_LEARNED:
-            # large reward or tiny prior ==> small current discount
-            discount = self.discount_model(obs, action)
         else:
             raise ValueError("Unknown discount type".format(
                 self.discount_type
             ))
-        if self._multiply_discount_by_discount_prior:
-            discount = discount * self.discount
+        if self._upper_bound_discount_by_prior and discount != prior_discount:
+            discount = torch.clamp(discount, max=prior_discount)
         return discount
 
     def get_alpha(self):

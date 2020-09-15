@@ -92,7 +92,7 @@ if __name__ == "__main__":
         'pgr_trainer_kwargs.reward_type': [
             # 'normal',
             'discounted',
-            # 'discounted_plus_time_kl',
+            'discounted_plus_time_kl',
         ],
         'dynamics_model_version': [
             # 'learned_model_ensemble',
@@ -105,13 +105,13 @@ if __name__ == "__main__":
             # 'prior',
             'computed_from_qr',
         ],
-        'pgr_trainer_kwargs.multiply_bootstrap_by_prior_discount': [
+        'pgr_trainer_kwargs.upper_bound_discount_by_prior': [
             True,
             False,
         ],
         'pgr_trainer_kwargs.auto_init_qf_bias': [
             True,
-            False,
+            # False,
         ],
         # 'pgr_trainer_kwargs.initial_weight_on_prior_discount': [
         #     1.0,
@@ -159,9 +159,6 @@ if __name__ == "__main__":
         ],
         'prior_discount_weight_schedule_kwargs.y_values': [
             [0, 0, 0, 0, 0],
-            [1, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0],
-            [1, 1, 1, 0, 0],
             [1, 1, 0.5, 0, 0],
         ],
         'reward_type': [
@@ -174,7 +171,7 @@ if __name__ == "__main__":
             50,
         ],
         'pgr_trainer_kwargs.reward_scale': [
-            'auto_normalize_by_max_magnitude_times_10',
+            # 'auto_normalize_by_max_magnitude_times_10',
             'auto_normalize_by_max_magnitude_times_100',
             # 1.,
         ],
@@ -195,11 +192,12 @@ if __name__ == "__main__":
     )
 
     n_seeds = 1
-    mode = 'htp'
-    exp_name = 'pgr--fancy-discount--exp-5--point2d-sweep-prior-weight-larger-rs'
+    mode = 'local'
+    exp_name = '20-09-14-local-' + __file__.split('/')[-1].split('.')[0].replace('_', '-')
+    print('exp_name', exp_name)
 
     if mode == 'local':
-        variant['algo_kwargs'] =dict(
+        variant['algo_kwargs'] = dict(
             batch_size=32,
             num_epochs=10,
             num_eval_steps_per_epoch=100,
@@ -222,19 +220,9 @@ if __name__ == "__main__":
             # variant['seed'] = seed
             run_experiment(
                 probabilistic_goal_reaching_experiment,
+                prepend_date_to_exp_name=False,
                 exp_name=exp_name,
                 mode=mode,
                 variant=variant,
-                use_gpu=False,
-                num_exps_per_instance=2,
-                slurm_config_name='cpu_co',
-                # slurm_config_name='cpu_co',
-                gcp_kwargs=dict(
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
-                        num_gpu=1,
-                    )
-                ),
-                time_in_mins=10*60,
+                use_gpu=True,
             )
