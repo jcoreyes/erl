@@ -10,7 +10,7 @@ import time
 from torchvision.transforms import ColorJitter, RandomResizedCrop, Resize
 from PIL import Image
 from rlkit.misc.asset_loader import load_local_or_remote_file
-import os 
+import os
 from tqdm import tqdm
 import pickle
 import sys
@@ -23,12 +23,12 @@ pixelcnn_dir = sys.path.append(os.getcwd()+ '/pixelcnn')
 
 from rlkit.torch.vae.initial_state_pixelcnn import GatedPixelCNN
 import rlkit.torch.vae.pixelcnn_utils
-from rlkit.torch.vae.vq_vae import CVQVAE, VQ_VAE
+from rlkit.torch.vae.vq_vae import VQ_VAE
 
 """
 Hyperparameters
 """
-import argparse 
+import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--filepath", type=str)
@@ -81,9 +81,9 @@ imlength = imsize * imsize * input_channels
 
 
 # Define data loading info
-train_path = '/home/ashvin/data/sasha/spacemouse/recon_data/train.npy'
-test_path = '/home/ashvin/data/sasha/spacemouse/recon_data/test.npy'
-new_path = "/home/ashvin/tmp/encoded_multiobj_bullet_data.npy"
+train_path = '/home/ashvin/data/s3doodad/sasha/vqvaes/gr_train_complex_obj_images.npy'
+test_path = '/home/ashvin/data/s3doodad/sasha/vqvaes/gr_test_complex_obj_images.npy'
+new_path = "/home/ashvin/data/s3doodad/sasha/vqvaes/pixelcnn.npy"
 # Define data loading info
 
 def prep_sample_data():
@@ -112,19 +112,19 @@ def resize_dataset(data, new_imsize=48):
 def encode_dataset(dataset_path):
     data = load_local_or_remote_file(dataset_path)
     data = data.item()
-    resize_dataset(data)
+    # resize_dataset(data)
 
     data["observations"] = data["observations"].reshape(-1, 50, imlength)
 
     all_data = []
-    
+
     vqvae.to('cpu')
     for i in tqdm(range(data["observations"].shape[0])):
         obs = ptu.from_numpy(data["observations"][i] / 255.0 )
         latent = vqvae.encode(obs, cont=False).reshape(-1, 50, discrete_size)
         all_data.append(latent)
     vqvae.to('cuda')
-    
+
     encodings = ptu.get_numpy(torch.cat(all_data, dim=0))
     return encodings
 
@@ -154,7 +154,7 @@ def train():
     for batch_idx, x in enumerate(train_loader):
         start_time = time.time()
         x_comb = x.cuda()
-        
+
         cond = vqvae.discrete_to_cont(x_comb[:, vqvae.discrete_size:]).reshape(x.shape[0], -1)
         x = x_comb[:, :vqvae.discrete_size].reshape(-1, root_len, root_len)
 
@@ -199,7 +199,7 @@ def test():
                 logits.view(-1, num_embeddings),
                 x.contiguous().view(-1)
             )
-            
+
             val_loss.append(loss.item())
 
     print('Validation Completed!\tLoss: {} Time: {}'.format(
