@@ -313,7 +313,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
         # Use the unscaled bootstrap values/rewards so that the weight on the
         # the Q-value/reward has the correct scale relative to the other terms
         raw_discount = self.get_discount_factor(
-            bootstrap_value / self.reward_scale,
+            bootstrap_value,
             rewards,
             obs,
             actions,
@@ -489,8 +489,10 @@ class PGRTrainer(TorchTrainer, LossFunction):
         return q_target
 
     def get_discount_factor(
-            self, bootstrap_value, reward, obs, action
+            self, bootstrap_value, unscaled_reward, obs, action
     ):
+        # TODO: train a separate Q-value for the log-pi terms so that the reward
+        # scale matches
         prior_discount = self.discount  # rename for readability
         if self.discount_type == self.PRIOR_DISCOUNT:
             discount = prior_discount
@@ -500,18 +502,17 @@ class PGRTrainer(TorchTrainer, LossFunction):
             # large reward or tiny prior ==> small current discount
             dist = self.policy(obs)
             log_pi = dist.log_prob(action).detach().unsqueeze(-1)
-            scaled_log_pi = self.get_alpha() * log_pi
             discount = torch.sigmoid(
                 bootstrap_value
-                - reward
-                + scaled_log_pi
+                - unscaled_reward * self.reward_scale
+                + log_pi * self.get_alpha()
                 + np.log(prior_discount / (1 - prior_discount))
             )
         else:
             raise ValueError("Unknown discount type".format(
                 self.discount_type
             ))
-        if self._upper_bound_discount_by_prior and discount != prior_discount:
+        if self._upper_bound_discount_by_prior and discount is not prior_discount:
             discount = torch.clamp(discount, max=prior_discount)
         return discount
 
