@@ -30,6 +30,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
     LEARNED_DISCOUNT = 'learned'
     PRIOR_DISCOUNT = 'prior'
     COMPUTED_DISCOUNT = 'computed_from_qr'
+    COMPUTED_DISCOUNT_NO_PRIOR = 'computed_from_qr_no_prior'
 
     def __init__(
             self,
@@ -111,6 +112,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
             self.PRIOR_DISCOUNT,
             self.LEARNED_DISCOUNT,
             self.COMPUTED_DISCOUNT,
+            self.COMPUTED_DISCOUNT_NO_PRIOR,
         }:
             raise ValueError("Invalid discount type: {}".format(
                 discount_type
@@ -128,6 +130,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
             'auto_normalize_by_max_magnitude',
             'auto_normalize_by_max_magnitude_times_10',
             'auto_normalize_by_max_magnitude_times_100',
+            'auto_normalize_by_max_magnitude_times_invsig_prior',
             'auto_normalize_by_mean_magnitude',
         }:
             raise ValueError("Invalid reward_scale type: {}".format(
@@ -239,6 +242,7 @@ class PGRTrainer(TorchTrainer, LossFunction):
             'auto_normalize_by_max_magnitude',
             'auto_normalize_by_max_magnitude_times_10',
             'auto_normalize_by_max_magnitude_times_100',
+            'auto_normalize_by_max_magnitude_times_invsig_prior',
         }:
             rewards = batch['rewards']
             self._reward_normalizer = (
@@ -436,6 +440,9 @@ class PGRTrainer(TorchTrainer, LossFunction):
             return 10. / self._reward_normalizer
         elif self._reward_scale == 'auto_normalize_by_max_magnitude_times_100':
             return 100. / self._reward_normalizer
+        elif self._reward_scale == 'auto_normalize_by_max_magnitude_times_invsig_prior':
+            return (np.log(self.discount) - np.log(1 - self.discount)
+                    ) / self._reward_normalizer
         elif self._reward_scale == 'auto_normalize_by_mean_magnitude':
             return 1. / self._reward_normalizer
         elif isinstance(self._reward_scale, Number):
@@ -500,14 +507,17 @@ class PGRTrainer(TorchTrainer, LossFunction):
             discount = self.discount_model(obs, action)
         elif self.discount_type == self.COMPUTED_DISCOUNT:
             # large reward or tiny prior ==> small current discount
-            dist = self.policy(obs)
-            log_pi = dist.log_prob(action).detach().unsqueeze(-1)
             discount = torch.sigmoid(
                 bootstrap_value
                 - unscaled_reward * self.reward_scale
-                + log_pi * self.get_alpha()
                 + np.log(prior_discount / (1 - prior_discount))
-            )
+            ).detach()
+        elif self.discount_type == self.COMPUTED_DISCOUNT_NO_PRIOR:
+            # large reward or tiny prior ==> small current discount
+            discount = torch.sigmoid(
+                bootstrap_value
+                - unscaled_reward * self.reward_scale
+            ).detach()
         else:
             raise ValueError("Unknown discount type".format(
                 self.discount_type
