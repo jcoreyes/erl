@@ -162,7 +162,7 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
                 k: replay_buffer_contexts[k] for k in self._context_keys}
             contexts.append(replay_buffer_contexts)
 
-        if num_future_contexts > 0:
+        if num_next_contexts > 0:
             start_idx = -(num_future_contexts + num_next_contexts)
             start_state_indices = indices[start_idx:-num_future_contexts]
             next_contexts = self._get_next_contexts(start_state_indices)
@@ -213,15 +213,3 @@ class ContextualRelabelingReplayBuffer(ObsDictReplayBuffer):
     def _get_next_contexts(self, start_state_indices):
         next_obs_dict = self._batch_next_obs_dict(start_state_indices)
         return self._sample_context_from_obs_dict_fn(next_obs_dict)
-
-    def _get_future_obs_indices(self, start_state_indices):
-        future_obs_idxs = []
-        for i in start_state_indices:
-            possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
-            # This is generally faster than random.choice. Makes you wonder what
-            # random.choice is doing
-            num_options = len(possible_future_obs_idxs)
-            next_obs_i = int(np.random.randint(0, num_options))
-            future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-        future_obs_idxs = np.array(future_obs_idxs)
-        return future_obs_idxs

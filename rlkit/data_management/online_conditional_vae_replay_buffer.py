@@ -184,15 +184,7 @@ class OnlineConditionalVaeRelabelingBuffer(OnlineVaeRelabelingBuffer):
                 new_next_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx, :r1] = \
                     env_goals
         if num_future_goals > 0:
-            future_obs_idxs = []
-            for i in indices[-num_future_goals:]:
-                possible_future_obs_idxs = self._idx_to_future_obs_idx[i]
-                # This is generally faster than random.choice. Makes you wonder what
-                # random.choice is doing
-                num_options = len(possible_future_obs_idxs)
-                next_obs_i = int(np.random.randint(0, num_options))
-                future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
-            future_obs_idxs = np.array(future_obs_idxs)
+            future_obs_idxs = self._get_future_obs_indices(indices[-num_future_goals:])
             resampled_goals[-num_future_goals:] = self._next_obs[
                 self.achieved_goal_key
             ][future_obs_idxs]
