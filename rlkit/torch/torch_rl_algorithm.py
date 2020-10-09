@@ -4,6 +4,7 @@ from typing import Iterable,MutableMapping
 from torch import nn as nn
 
 from rlkit.core.batch_rl_algorithm import BatchRLAlgorithm
+from rlkit.core.batch_rl_algorithm_modenv import BatchRLAlgorithmModEnv
 from rlkit.core.offline_rl_algorithm import BatchOfflineRLAlgorithm
 from rlkit.core.online_rl_algorithm import OnlineRLAlgorithm
 from rlkit.core.trainer import Trainer
@@ -32,6 +33,14 @@ class TorchBatchRLAlgorithm(BatchRLAlgorithm):
         for net in self.trainer.networks:
             net.train(mode)
 
+class TorchBatchRLAlgorithmModEnv(BatchRLAlgorithmModEnv):
+    def to(self, device):
+        for net in self.trainer.networks:
+            net.to(device)
+
+    def training_mode(self, mode):
+        for net in self.trainer.networks:
+            net.train(mode)
 
 class TorchOfflineBatchRLAlgorithm(BatchOfflineRLAlgorithm):
     def to(self, device):
