@@ -1,7 +1,7 @@
 """
 Test twin sac against various environments.
 """
-from gym.envs.mujoco import (
+from rlkit.envs.erl import (
     HalfCheetahEnv,
     AntEnv,
     Walker2dEnv,
@@ -34,6 +34,7 @@ from rlkit.torch.torch_rl_algorithm import (
     TorchBatchRLAlgorithm,
     TorchOnlineRLAlgorithm,
 )
+from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithmModEnv
 
 ENV_PARAMS = {
     'half-cheetah': {  # 6 DoF
@@ -127,9 +128,10 @@ ENV_PARAMS = {
 
 def experiment(variant):
     env_params = ENV_PARAMS[variant['env']]
+    env_mod_params = variant['env_mod']
     variant.update(env_params)
 
-    expl_env = NormalizedBoxEnv(variant['env_class']({}))
+    expl_env = NormalizedBoxEnv(variant['env_class'](env_mod_params))
     eval_env = NormalizedBoxEnv(variant['env_class']({}))
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
@@ -203,7 +205,7 @@ def experiment(variant):
             expl_env,
             policy,
         )
-        algorithm = TorchBatchRLAlgorithm(
+        algorithm = TorchBatchRLAlgorithmModEnv(
             trainer=trainer,
             exploration_env=expl_env,
             evaluation_env=eval_env,
@@ -217,6 +219,11 @@ def experiment(variant):
             num_expl_steps_per_train_loop=variant['num_expl_steps_per_train_loop'],
             num_trains_per_train_loop=variant['num_trains_per_train_loop'],
             min_num_steps_before_training=variant['min_num_steps_before_training'],
+            mod_env_epoch_schedule=variant['mod_env_epoch_schedule'],
+            env_mod_dist=variant['mod_env_dist'],
+            env_class=variant['env_class'],
+            env_mod_params=variant['env_mod']
+
         )
     algorithm.to(ptu.device)
     algorithm.train()
@@ -236,6 +243,7 @@ if __name__ == "__main__":
         algorithm="SAC",
         version="normal",
         collection_mode='batch',
+        mod_env_dist=True,
         trainer_kwargs=dict(
             discount=0.99,
             soft_target_tau=5e-3,
@@ -245,40 +253,47 @@ if __name__ == "__main__":
             reward_scale=1,
             use_automatic_entropy_tuning=True,
         ),
+        mod_env_epoch_schedule=0.5,
+        env_mod=dict(
+            gravity=[0.9, 1.1],
+            friction=[0.5, 1.2],
+            ctrlrange=[0.5, 1.2],
+            gear=[0.7, 1.2],
+        )
     )
-
     n_seeds = 3
-    mode = 'ec2'
-    exp_name = 'sac-baseline-sparse'
-
+    mode = 'local'
+    exp_name = 'sparse_modenv_envmoddist'
+    sparse = True
     # n_seeds = 5
     # mode = 'sss'
     # exp_name = 'rlkit-half-cheetah-online'
-
-    search_space = {
-        'env': [
-            # 'half-cheetah',
-            # 'inv-double-pendulum',
-            # 'pendulum',
-            # 'ant',
-            # 'walker',
-            # 'hopper',
-            # 'humanoid',
-            # 'swimmer',
+    if not sparse:
+        env_ids = [
+                'half-cheetah',
+                 'inv-double-pendulum',
+                # 'pendulum',
+                 'ant',
+                 'walker',
+                 'hopper',
+                 'humanoid',
+                 'swimmer',
+            ]
+    else:
+        env_ids = [
             'sparse-half-cheetah',
             'sparse-ant',
             'sparse-walker',
             'sparse-hopper',
             'sparse-humanoid',
             'sparse-swimmer',
-        ],
-    }
-    sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
-    )
-    for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+         ]
+
+
+
+    for env_id in env_ids:
+        variant['env'] = env_id
         for _ in range(n_seeds):
-            variant['exp_id'] = exp_id
             run_experiment(
                 experiment,
                 unpack_variant=False,
@@ -288,5 +303,18 @@ if __name__ == "__main__":
                 time_in_mins=int(2.8 * 24 * 60),  # if you use mode=sss
                 region='us-east-2',
             )
+            #exit(0)
 
-
+    # for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
+    #     for _ in range(n_seeds):
+    #         variant['exp_id'] = exp_id
+    #         run_experiment(
+    #             experiment,
+    #             unpack_variant=False,
+    #             exp_name=exp_name,
+    #             mode=mode,
+    #             variant=variant,
+    #             time_in_mins=int(2.8 * 24 * 60),  # if you use mode=sss
+    #             region='us-east-2',
+    #         )
+    #         break

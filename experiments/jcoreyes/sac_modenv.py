@@ -10,6 +10,14 @@ from rlkit.envs.erl import (
     HumanoidEnv,
     SwimmerEnv,
 )
+from rlkit.envs.erl import (
+    SparseHalfCheetahEnv,
+    SparseAntEnv,
+    SparseWalker2dEnv,
+    SparseHopperEnv,
+    SparseHumanoidEnv,
+    SparseSwimmerEnv,
+)
 from gym.envs.classic_control import PendulumEnv
 
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
@@ -75,6 +83,42 @@ ENV_PARAMS = {
     },
     'swimmer': {  # 6 DoF
         'env_class': SwimmerEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 2000,
+    },
+    'sparse-half-cheetah': {  # 6 DoF
+        'env_class': SparseHalfCheetahEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 1000,
+    },
+    'sparse-hopper': {  # 6 DoF
+        'env_class': SparseHopperEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 1000,
+    },
+    'sparse-humanoid': {  # 6 DoF
+        'env_class': SparseHumanoidEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 1500,
+    },
+    'sparse-ant': {  # 6 DoF
+        'env_class': SparseAntEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 3000,
+    },
+    'sparse-walker': {  # 6 DoF
+        'env_class': SparseWalker2dEnv,
+        'num_expl_steps_per_train_loop': 1000,
+        'max_path_length': 1000,
+        'num_epochs': 3000,
+    },
+    'sparse-swimmer': {  # 6 DoF
+        'env_class': SparseSwimmerEnv,
         'num_expl_steps_per_train_loop': 1000,
         'max_path_length': 1000,
         'num_epochs': 2000,
@@ -212,59 +256,32 @@ if __name__ == "__main__":
     num_configurations = 200
     n_seeds = 1
     mode = 'ec2'
-    exp_name = 'dev'
-
+    exp_name = 'sparse_modenv'
+    sparse = True
     # n_seeds = 5
     # mode = 'sss'
     # exp_name = 'rlkit-half-cheetah-online'
-    env_ids = [
-            'half-cheetah',
-             'inv-double-pendulum',
-            # 'pendulum',
-             'ant',
-             'walker',
-             'hopper',
-             'humanoid',
-             'swimmer',
-        ]
+    if not sparse:
+        env_ids = [
+                'half-cheetah',
+                 'inv-double-pendulum',
+                # 'pendulum',
+                 'ant',
+                 'walker',
+                 'hopper',
+                 'humanoid',
+                 'swimmer',
+            ]
+    else:
+        env_ids = [
+            'sparse-half-cheetah',
+            'sparse-ant',
+            'sparse-walker',
+            'sparse-hopper',
+            'sparse-humanoid',
+            'sparse-swimmer',
+         ]
 
-    search_space = {
-        'env': [
-            'half-cheetah',
-             'inv-double-pendulum',
-            # 'pendulum',
-             'ant',
-             'walker',
-             'hopper',
-             'humanoid',
-             'swimmer',
-        ],
-        'env_mod': {
-            'gravity': [0.9, 1],
-            'friction': [0.9, 1],
-            'ctrlrange': [0.9, 1],
-            'gear': [0.9, 1],
-
-        }
-    }
-    # hyperparameters = [
-    #     hyp.LinearFloatParam('foo', 0, 1),
-    #     hyp.LogFloatParam('bar', 1e-5, 1e2),
-    # ]
-    # sweeper = hyp.RandomHyperparameterSweeper(
-    #     hyperparameters,
-    #     default_kwargs=variant,
-    # )
-
-    # mods = dict(gravity=0.9,
-    #             friction=0.9,
-    #             ctrlrange=0.9,
-    #             gear=0.9
-    #             )
-    #
-    # sweeper = hyp.DeterministicHyperparameterSweeper(
-    #     search_space, default_parameters=variant,
-    # )
     hyperparameters = [
         hyp.LinearFloatParam('env_mod.gravity', 0.5, 1.2),
         hyp.LinearFloatParam('env_mod.friction', 0.5, 1.2),

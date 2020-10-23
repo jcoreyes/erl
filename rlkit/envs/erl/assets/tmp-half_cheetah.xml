@@ -2,11 +2,11 @@
   <compiler angle="radian" coordinate="local" inertiafromgeom="true" settotalmass="14" />
   <default>
     <joint armature=".1" damping=".01" limited="true" solimplimit="0 .8 .03" solreflimit=".02 1" stiffness="8" />
-    <geom conaffinity="0" condim="3" contype="1" friction="0.4 0.1 0.1" rgba="0.8 0.6 .4 1" solimp="0.0 0.8 0.01" solref="0.02 1" />
-    <motor ctrllimited="true" ctrlrange="-1.0 1.0" />
+    <geom conaffinity="0" condim="3" contype="1" friction="0.48 0.12 0.12" rgba="0.8 0.6 .4 1" solimp="0.0 0.8 0.01" solref="0.02 1" />
+    <motor ctrllimited="true" ctrlrange="-1.2 1.2" />
   </default>
   <size nstack="300000" nuser_geom="1" />
-  <option gravity="0.0 0.0 -9.81" timestep="0.01" />
+  <option gravity="0.5128923711808497 0 -9.786569440594825" timestep="0.01" />
   <asset>
     <texture builtin="gradient" height="100" rgb1="1 1 1" rgb2="0 0 0" type="skybox" width="100" />
     <texture builtin="flat" height="1278" mark="cross" markrgb="1 1 1" name="texgeom" random="0.01" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" type="cube" width="127" />
@@ -52,11 +52,11 @@
     </body>
   </worldbody>
   <actuator>
-    <motor gear="120.0" joint="bthigh" name="bthigh" />
-    <motor gear="90.0" joint="bshin" name="bshin" />
-    <motor gear="60.0" joint="bfoot" name="bfoot" />
-    <motor gear="120.0" joint="fthigh" name="fthigh" />
-    <motor gear="60.0" joint="fshin" name="fshin" />
-    <motor gear="30.0" joint="ffoot" name="ffoot" />
+    <motor gear="144.0" joint="bthigh" name="bthigh" />
+    <motor gear="108.0" joint="bshin" name="bshin" />
+    <motor gear="72.0" joint="bfoot" name="bfoot" />
+    <motor gear="144.0" joint="fthigh" name="fthigh" />
+    <motor gear="72.0" joint="fshin" name="fshin" />
+    <motor gear="36.0" joint="ffoot" name="ffoot" />
   </actuator>
 </mujoco>
